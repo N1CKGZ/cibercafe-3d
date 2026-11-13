@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { entrance, furniture, leafThickness, leaves, leafTip, rackHeight, room, server, study, technical, waiting, wallParts, walls } from './model.ts';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { entrance, furniture, leafThickness, leaves, leafTip, rackHeight, room, server, study, techDoor, technical, waiting, wallParts, walls } from './model.ts';
 import type { Model, Point, Rect } from './model.ts';
 import { maxX, maxZ, meters, minX, minZ, service } from './geometry.ts';
 import type { Passage } from './geometry.ts';
@@ -8,6 +9,8 @@ import { devicePorts, rackDevices, sectionSize, serverPosition } from './network
 import type { Network, NetworkPoint } from './network.ts';
 import { portMap, trunkColor, vlans } from './network-design.ts';
 import type { PortPair } from './network-design.ts';
+import { createObstacles, getZoneName, isNearTechDoor, stepMovement } from './collision.ts';
+import type { Obstacle } from './collision.ts';
 
 type CameraView = 'iso' | 'top' | 'rack';
 type Inspection = ReturnType<typeof import('./geometry.ts').inspect>;
@@ -21,8 +24,16 @@ const colors = {
   warn: 0xce8d42, route: 0x08665b, blocked: 0xaa3f33, door: 0xb88048, service: 0x3c899b,
 };
 
-export function createViewer(container: HTMLElement, labelLayer: HTMLElement, onPassage: (id: string) => void,
-  onEquipment: (id: string, port?: number) => void) {
+export function createViewer(
+  container: HTMLElement,
+  labelLayer: HTMLElement,
+  onPassage: (id: string) => void,
+  onEquipment: (id: string, port?: number) => void,
+  onTourState?: (active: boolean, locked: boolean) => void,
+  onDoorState?: (open: boolean) => void,
+  onZoneState?: (zone: string) => void,
+  onInspectTarget?: (target: string | null) => void,
+) {
   const renderer = new T.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0xdce6ef);
@@ -30,6 +41,23 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
   renderer.shadowMap.type = T.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.domElement.setAttribute('aria-label', 'Modelo 3D del cibercafé');
+
+  // Wrap requestPointerLock so sandboxed environments without pointer-lock permissions do not trigger unhandled promise rejections
+  const origRequestPointerLock = renderer.domElement.requestPointerLock?.bind(renderer.domElement);
+  if (origRequestPointerLock) {
+    renderer.domElement.requestPointerLock = function (options?: PointerLockOptions): Promise<void> {
+      try {
+        const res = origRequestPointerLock(options);
+        if (res && typeof res.catch === 'function') {
+          return res.catch(() => {});
+        }
+        return Promise.resolve();
+      } catch {
+        return Promise.resolve();
+      }
+    };
+  }
+
   container.prepend(renderer.domElement);
 
   const scene = new T.Scene();
@@ -49,6 +77,88 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
   controls.maxZoom = 4;
   controls.maxPolarAngle = Math.PI / 2 - 0.09;
   let view: CameraView = 'iso';
+
+  // First-person walkthrough camera & controls (70 deg FOV, eye height 1.65m)
+  const eyeHeight = 1.65;
+  const fpCamera = new T.PerspectiveCamera(70, 1, 0.1, 50);
+  const fpControls = new PointerLockControls(fpCamera, renderer.domElement);
+  const startPosition = new T.Vector3((entrance.start + entrance.end) / 2, eyeHeight, 10.80);
+  const startLookTarget = new T.Vector3(startPosition.x, eyeHeight, 5.0);
+
+  let isTour = false;
+  let techDoorOpen = true;
+  let currentModel: Model | undefined;
+  let activeObstacles: Obstacle[] = [];
+  let userDimensions = true;
+  let userCirculation = true;
+
+  const moveKeys = { forward: false, backward: false, left: false, right: false, shift: false };
+  function onKeyDown(e: KeyboardEvent) {
+    if (!isTour) return;
+    switch (e.code) {
+      case 'KeyW':
+      case 'ArrowUp':
+        moveKeys.forward = true;
+        break;
+      case 'KeyS':
+      case 'ArrowDown':
+        moveKeys.backward = true;
+        break;
+      case 'KeyA':
+      case 'ArrowLeft':
+        moveKeys.left = true;
+        break;
+      case 'KeyD':
+      case 'ArrowRight':
+        moveKeys.right = true;
+        break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        moveKeys.shift = true;
+        break;
+      case 'KeyE':
+        if (isNearTechDoor({ x: fpCamera.position.x, z: fpCamera.position.z }, 2.5)) {
+          toggleTechDoor();
+        }
+        break;
+    }
+  }
+  function onKeyUp(e: KeyboardEvent) {
+    switch (e.code) {
+      case 'KeyW':
+      case 'ArrowUp':
+        moveKeys.forward = false;
+        break;
+      case 'KeyS':
+      case 'ArrowDown':
+        moveKeys.backward = false;
+        break;
+      case 'KeyA':
+      case 'ArrowLeft':
+        moveKeys.left = false;
+        break;
+      case 'KeyD':
+      case 'ArrowRight':
+        moveKeys.right = false;
+        break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        moveKeys.shift = false;
+        break;
+    }
+  }
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+
+  fpControls.addEventListener('lock', () => {
+    onTourState?.(true, true);
+  });
+  fpControls.addEventListener('unlock', () => {
+    if (isTour) {
+      onTourState?.(true, false);
+    }
+  });
+
   let labels: Label[] = [];
   let networkLabels: Label[] = [];
   let picks: T.Mesh[] = [];
@@ -107,13 +217,44 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
       if (wall.id === 'Cuarto frontal') rackForeground.push(mesh);
     }
   }
+  const techDoorPivot = new T.Group();
+  techDoorPivot.position.set(techDoor.start, 0, technical.z);
+  architecture.add(techDoorPivot);
+  const techDoorMeshes: T.Mesh[] = [];
+
   for (const leaf of leaves) {
-    const tip = leafTip(leaf, Math.PI / 2);
-    const rect = { x: leaf.hinge.x, z: (tip.z + leaf.hinge.z) / 2, w: leafThickness, d: leaf.width };
     const material = leaf.door === entrance.id ? glass : ghost;
-    const pane = box(architecture, rect, 0, leaf.height, colors.door, material);
-    const rail = box(architecture, rect, 0, 0.045, colors.door);
-    if (leaf.door !== entrance.id) rackForeground.push(pane, rail);
+    if (leaf.door === techDoor.id) {
+      const localRect: Rect = { x: leaf.width / 2, z: 0, w: leaf.width, d: leafThickness };
+      const pane = box(techDoorPivot, localRect, 0, leaf.height, colors.door, material);
+      const rail = box(techDoorPivot, localRect, 0, 0.045, colors.door);
+      rackForeground.push(pane, rail);
+      techDoorMeshes.push(pane, rail);
+      pane.userData.isTechDoor = true;
+      rail.userData.isTechDoor = true;
+    } else {
+      const tip = leafTip(leaf, Math.PI / 2);
+      const rect = { x: leaf.hinge.x, z: (tip.z + leaf.hinge.z) / 2, w: leafThickness, d: leaf.width };
+      box(architecture, rect, 0, leaf.height, colors.door, material);
+      box(architecture, rect, 0, 0.045, colors.door);
+    }
+  }
+  // Initialize open at 90 deg (matching baseline anteproyecto)
+  techDoorPivot.rotation.y = Math.PI / 2;
+
+  function setTechDoor(open: boolean) {
+    techDoorOpen = open;
+    techDoorPivot.rotation.y = open ? Math.PI / 2 : 0;
+    if (currentModel) {
+      activeObstacles = createObstacles(currentModel, techDoorOpen);
+    }
+    renderer.shadowMap.needsUpdate = true;
+    onDoorState?.(techDoorOpen);
+  }
+
+  function toggleTechDoor() {
+    setTechDoor(!techDoorOpen);
+    return techDoorOpen;
   }
   box(architecture, waiting, 0.13, 0.34, colors.seat);
   box(architecture, { ...waiting, z: maxZ(waiting) - 0.07, d: 0.14 }, 0.44, 0.40, colors.seat);
@@ -322,6 +463,8 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
   }
 
   function showZones(model: Model, inspection: Inspection, selected: Passage, destination: string) {
+    currentModel = model;
+    activeObstacles = createObstacles(model, techDoorOpen);
     clear(zones);
     clear(objects);
     clear(annotations);
@@ -412,10 +555,26 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
     camera.top = halfHeight;
     camera.bottom = -halfHeight;
     camera.updateProjectionMatrix();
+
+    fpCamera.aspect = ratio;
+    fpCamera.updateProjectionMatrix();
+
     renderer.setSize(w, h, false);
   }
 
   function setView(next: CameraView) {
+    if (isTour) {
+      isTour = false;
+      controls.enabled = true;
+      if (fpControls.isLocked) fpControls.unlock();
+      labelLayer.hidden = !userDimensions;
+      (labelLayer as HTMLElement).style.display = userDimensions ? '' : 'none';
+      (networkLayer as HTMLElement).style.display = '';
+      annotations.visible = userDimensions;
+      zones.visible = userCirculation;
+      onTourState?.(false, false);
+      onInspectTarget?.(null);
+    }
     view = next;
     labelLayer.classList.toggle('rack-view', view === 'rack');
     controls.target.copy(view === 'rack' ? new T.Vector3(rack.x, 0.49, rack.z + 0.18)
@@ -440,15 +599,148 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
     renderer.shadowMap.needsUpdate = true;
   }
 
+  const fwd = new T.Vector3();
+  const rightVec = new T.Vector3();
+
+  function updateFirstPerson(dt: number) {
+    if (!isTour) return;
+
+    fpCamera.getWorldDirection(fwd);
+    fwd.y = 0;
+    fwd.normalize();
+    rightVec.crossVectors(fwd, fpCamera.up);
+
+    let dirX = 0;
+    let dirZ = 0;
+    if (moveKeys.forward) { dirX += fwd.x; dirZ += fwd.z; }
+    if (moveKeys.backward) { dirX -= fwd.x; dirZ -= fwd.z; }
+    if (moveKeys.right) { dirX += rightVec.x; dirZ += rightVec.z; }
+    if (moveKeys.left) { dirX -= rightVec.x; dirZ -= rightVec.z; }
+
+    const len = Math.hypot(dirX, dirZ);
+    if (len > 0) {
+      const speed = moveKeys.shift ? 3.8 : 2.0;
+      const stepDist = speed * dt;
+      const deltaX = (dirX / len) * stepDist;
+      const deltaZ = (dirZ / len) * stepDist;
+
+      const currentPos = { x: fpCamera.position.x, z: fpCamera.position.z };
+      const newPos = stepMovement(currentPos, { x: deltaX, z: deltaZ }, 0.22, activeObstacles);
+      fpCamera.position.x = newPos.x;
+      fpCamera.position.z = newPos.z;
+    }
+    fpCamera.position.y = eyeHeight;
+  }
+
+  function resetTourPosition() {
+    fpCamera.position.copy(startPosition);
+    fpCamera.lookAt(startLookTarget);
+  }
+
+  function startTour() {
+    isTour = true;
+    controls.enabled = false;
+    resetTourPosition();
+    for (const mesh of upperWalls) mesh.visible = true;
+    for (const mesh of ghostWalls) mesh.material = solids.get(colors.wall)!;
+    for (const mesh of rackForeground) mesh.visible = true;
+
+    // Strict separation: completely hide all floating labels, 3D dimension geometry, and circulation overlays
+    labelLayer.hidden = true;
+    (labelLayer as HTMLElement).style.display = 'none';
+    (networkLayer as HTMLElement).style.display = 'none';
+    annotations.visible = false;
+    zones.visible = false;
+
+    fit();
+    onTourState?.(true, false);
+    onZoneState?.(getZoneName(fpCamera.position.x, fpCamera.position.z));
+    fpControls.lock();
+  }
+
+  function exitTour() {
+    if (!isTour) return;
+    isTour = false;
+    moveKeys.forward = false;
+    moveKeys.backward = false;
+    moveKeys.left = false;
+    moveKeys.right = false;
+    moveKeys.shift = false;
+    if (fpControls.isLocked) {
+      fpControls.unlock();
+    }
+    controls.enabled = true;
+
+    // Restore label, dimension and circulation visibility according to user preferences
+    labelLayer.hidden = !userDimensions;
+    (labelLayer as HTMLElement).style.display = userDimensions ? '' : 'none';
+    (networkLayer as HTMLElement).style.display = '';
+    annotations.visible = userDimensions;
+    zones.visible = userCirculation;
+
+    onTourState?.(false, false);
+    onInspectTarget?.(null);
+    setView('iso');
+  }
+
   new ResizeObserver(fit).observe(container);
   setView('iso');
   const raycaster = new T.Raycaster();
   let start: Point | undefined;
-  renderer.domElement.addEventListener('pointerdown', e => { start = { x: e.clientX, z: e.clientY }; });
+  let isDraggingLook = false;
+  let prevPointer = { x: 0, y: 0 };
+  const lookEuler = new T.Euler(0, 0, 0, 'YXZ');
+
+  renderer.domElement.addEventListener('pointerdown', e => {
+    start = { x: e.clientX, z: e.clientY };
+    if (isTour && !fpControls.isLocked) {
+      isDraggingLook = true;
+      prevPointer = { x: e.clientX, y: e.clientY };
+    }
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (isTour && !fpControls.isLocked && isDraggingLook) {
+      const dx = e.clientX - prevPointer.x;
+      const dy = e.clientY - prevPointer.y;
+      prevPointer = { x: e.clientX, y: e.clientY };
+      lookEuler.setFromQuaternion(fpCamera.quaternion);
+      lookEuler.y -= dx * 0.003;
+      lookEuler.x -= dy * 0.003;
+      lookEuler.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, lookEuler.x));
+      fpCamera.quaternion.setFromEuler(lookEuler);
+    }
+  });
+
+  window.addEventListener('pointerup', () => {
+    isDraggingLook = false;
+  });
   renderer.domElement.addEventListener('pointerup', e => {
     if (!start || Math.hypot(e.clientX - start.x, e.clientY - start.z) > 5) return;
     const r = renderer.domElement.getBoundingClientRect();
-    raycaster.setFromCamera(new T.Vector2((e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2), camera);
+    const activeCamera = isTour ? fpCamera : camera;
+    raycaster.setFromCamera(new T.Vector2((e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2), activeCamera);
+
+    if (isTour) {
+      const doorHit = raycaster.intersectObjects(techDoorMeshes)[0];
+      if (doorHit && doorHit.distance < 3.0) {
+        toggleTechDoor();
+        return;
+      }
+      const equipHit = raycaster.intersectObjects([...rackMeshes, ...objects.children], true)[0];
+      if (equipHit && equipHit.distance < 4.5) {
+        const name = equipHit.object.name || equipHit.object.parent?.name;
+        if (name) {
+          onEquipment(name, equipHit.object.userData?.port);
+          return;
+        }
+      }
+      if (!fpControls.isLocked) {
+        fpControls.lock();
+      }
+      return;
+    }
+
     const first = zones.visible ? raycaster.intersectObjects(picks)[0] : undefined;
     const rackHit = raycaster.intersectObjects(rackMeshes)[0];
     if (rackHit && (!first || rackHit.distance < first.distance)) {
@@ -465,24 +757,63 @@ export function createViewer(container: HTMLElement, labelLayer: HTMLElement, on
     if (first) onPassage(first.object.userData.id);
   });
   const projected = new T.Vector3();
+  const centerReticle = new T.Vector2(0, 0);
+  let lastTime = performance.now();
   renderer.setAnimationLoop(() => {
-    controls.update();
-    renderer.render(scene, camera);
-    for (const set of [labelLayer.hidden || view === 'rack' ? [] : labels, networkLabels]) {
-      for (const { element, point } of set) {
-        projected.copy(point).project(camera);
-        element.style.left = `${(projected.x + 1) * 50}%`;
-        element.style.top = `${(1 - projected.y) * 50}%`;
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    const activeCamera = isTour ? fpCamera : camera;
+
+    if (isTour) {
+      updateFirstPerson(dt);
+      const currentZone = getZoneName(fpCamera.position.x, fpCamera.position.z);
+      onZoneState?.(currentZone);
+
+      raycaster.setFromCamera(centerReticle, fpCamera);
+      const equipHit = raycaster.intersectObjects([...rackMeshes, ...objects.children], true)[0];
+      if (equipHit && equipHit.distance < 3.5) {
+        const name = equipHit.object.name || equipHit.object.parent?.name;
+        onInspectTarget?.(name || null);
+      } else {
+        onInspectTarget?.(null);
+      }
+    } else {
+      controls.update();
+
+      // Only project labels in isometric/top/rack views
+      const showDimLabels = !labelLayer.hidden && view !== 'rack';
+      for (const set of [showDimLabels ? labels : [], networkLabels]) {
+        for (const { element, point } of set) {
+          projected.copy(point).project(camera);
+          element.style.display = '';
+          element.style.left = `${(projected.x + 1) * 50}%`;
+          element.style.top = `${(1 - projected.y) * 50}%`;
+        }
       }
     }
+
+    renderer.render(scene, activeCamera);
   });
   return {
     showZones, showNetwork, setView, center: () => setView(view),
     zoom(factor: number) { camera.zoom = T.MathUtils.clamp(camera.zoom * factor, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); },
     layers(dimensions: boolean, circulation: boolean) {
-      labelLayer.hidden = !dimensions;
-      annotations.visible = dimensions;
-      zones.visible = circulation;
+      userDimensions = dimensions;
+      userCirculation = circulation;
+      if (!isTour) {
+        labelLayer.hidden = !dimensions;
+        (labelLayer as HTMLElement).style.display = dimensions ? '' : 'none';
+        annotations.visible = dimensions;
+        zones.visible = circulation;
+      }
     },
+    startTour,
+    exitTour,
+    resetTourPosition,
+    toggleTechDoor,
+    isTourActive: () => isTour,
+    requestPointerLock: () => { if (isTour) fpControls.lock(); },
   };
 }

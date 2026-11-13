@@ -56,6 +56,62 @@ button[aria-pressed="true"] { color: #105c53; background: #dff2ed; border-color:
 .viewport canvas:active { cursor: grabbing; }
 #labels, #network-labels { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
 #labels.rack-view { visibility: hidden; }
+.tour-hud[hidden], .tour-prompt[hidden], .tour-target[hidden] { display: none !important; }
+.tour-hud {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  display: flex; flex-direction: column; justify-content: space-between; padding: 12px;
+}
+.tour-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; width: 100%;
+}
+.tour-actions {
+  pointer-events: auto; display: flex; flex-wrap: wrap; gap: 8px;
+  background: rgba(17, 27, 44, 0.88); backdrop-filter: blur(8px);
+  padding: 8px 12px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.14);
+  align-self: flex-start; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+.tour-actions button {
+  background: #1c2b3e; color: #f1f5f9; border: 1px solid #374c65;
+  font-size: 11px; padding: 5px 10px; min-height: 28px;
+}
+.tour-actions button:hover { background: #273b54; border-color: #5c7b9e; color: #fff; }
+.tour-zone {
+  background: rgba(17, 27, 44, 0.88); backdrop-filter: blur(8px);
+  padding: 8px 14px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #8ae0cc; font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28); pointer-events: none; white-space: nowrap;
+}
+.tour-target {
+  position: absolute; top: calc(50% + 18px); left: 50%; transform: translateX(-50%);
+  background: rgba(17, 27, 44, 0.90); backdrop-filter: blur(8px);
+  padding: 4px 12px; border-radius: 6px; border: 1px solid #3d8076;
+  color: #ffdf85; font-size: 11px; font-weight: 650; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); white-space: nowrap;
+}
+.tour-hints {
+  pointer-events: none; align-self: center; margin-bottom: 6px;
+  display: flex; flex-wrap: wrap; gap: 8px 12px;
+  background: rgba(17, 27, 44, 0.82); backdrop-filter: blur(6px);
+  padding: 6px 14px; border-radius: 20px; font-size: 11px; color: #d1dbe5;
+  border: 1px solid rgba(255, 255, 255, 0.10); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
+}
+.tour-hints kbd {
+  background: #23344a; color: #8ae0cc; padding: 2px 5px; border-radius: 4px;
+  font-family: inherit; font-size: 10px; font-weight: 700;
+  border: 1px solid #3d5472; margin-right: 3px;
+}
+.tour-prompt {
+  pointer-events: none; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); background: rgba(17, 27, 44, 0.92);
+  backdrop-filter: blur(8px); padding: 12px 22px; border-radius: 8px;
+  border: 1px solid #2d7367; color: #f1f5f9; font-size: 13px; font-weight: 600;
+  text-align: center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.tour-reticle {
+  position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+  background: rgba(255, 255, 255, 0.75); border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
+}
 .model-label {
   position: absolute; transform: translate(-50%, -50%); padding: 3px 6px; border-radius: 4px;
   background: #fffef4; border: 1px solid #afbac5; color: #1e3446; white-space: nowrap;

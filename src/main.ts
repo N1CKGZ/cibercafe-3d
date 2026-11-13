@@ -41,12 +41,66 @@ layout.value = defaultLayout;
 selectOptions(chair, Object.entries(chairStates));
 chair.value = 'occupied';
 
+const tourStart = element<HTMLButtonElement>('tour-start');
+const tourExit = element<HTMLButtonElement>('tour-exit');
+const tourReset = element<HTMLButtonElement>('tour-reset');
+const tourIso = element<HTMLButtonElement>('tour-iso');
+const tourDoor = element<HTMLButtonElement>('tour-door');
+const tourHud = element<HTMLElement>('tour-hud');
+const tourPrompt = element<HTMLElement>('tour-prompt');
+const tourZone = element<HTMLElement>('tour-zone');
+const tourTarget = element<HTMLElement>('tour-target');
+
+function onTourState(active: boolean, locked: boolean) {
+  tourStart.hidden = active;
+  tourStart.setAttribute('aria-pressed', String(active));
+  element('iso').setAttribute('aria-pressed', String(!active && !rackView));
+  element('top').setAttribute('aria-pressed', 'false');
+  tourHud.hidden = !active;
+  tourPrompt.hidden = !active || locked;
+  if (!active) tourTarget.hidden = true;
+  const hint = document.querySelector('.view-hint');
+  if (hint) {
+    hint.textContent = active
+      ? (locked
+        ? 'W/A/S/D: Moverse · Shift: Correr · Mouse: Mirar · E: Puerta técnica · Esc: Liberar cursor'
+        : 'Cursor liberado · Haz clic en la pantalla para reanudar o usa los botones superiores')
+      : (rackView ? 'Selecciona un equipo o un puerto · Rueda para acercar' : 'Arrastra para orbitar · Rueda para acercar');
+  }
+}
+
+function onDoorState(open: boolean) {
+  tourDoor.textContent = `Puerta técnica: ${open ? 'Abierta' : 'Cerrada'}`;
+}
+
+function onZoneState(zone: string) {
+  tourZone.textContent = `Zona: ${zone}`;
+}
+
+function onInspectTarget(target: string | null) {
+  if (target) {
+    tourTarget.hidden = false;
+    tourTarget.textContent = `Al frente: ${target} · Clic para ficha técnica`;
+  } else {
+    tourTarget.hidden = true;
+  }
+}
+
 let viewer: ReturnType<typeof createViewer> | undefined;
 try {
-  viewer = createViewer(element('viewport'), element('labels'), id => {
-    passage.value = id;
-    showInspection();
-  }, selectEquipment);
+  viewer = createViewer(
+    element('viewport'),
+    element('labels'),
+    id => {
+      passage.value = id;
+      showInspection();
+    },
+    selectEquipment,
+    (active, locked) => onTourState(active, locked),
+    open => onDoorState(open),
+    zone => onZoneState(zone),
+    target => onInspectTarget(target),
+  );
 } catch (error) {
   element('renderer-error').hidden = false;
   console.error(error);
@@ -285,6 +339,24 @@ for (const view of ['iso', 'top'] as const) {
 element('center').addEventListener('click', () => viewer?.center());
 element('in').addEventListener('click', () => viewer?.zoom(1.2));
 element('out').addEventListener('click', () => viewer?.zoom(1 / 1.2));
+
+tourStart.addEventListener('click', () => {
+  rackView = false;
+  element('rack-view').setAttribute('aria-pressed', 'false');
+  viewer?.startTour();
+});
+tourExit.addEventListener('click', () => {
+  viewer?.exitTour();
+});
+tourReset.addEventListener('click', () => {
+  viewer?.resetTourPosition();
+});
+tourIso.addEventListener('click', () => {
+  viewer?.exitTour();
+});
+tourDoor.addEventListener('click', () => {
+  viewer?.toggleTechDoor();
+});
 element('criteria').textContent =
   `El visor busca la ruta que admite el cuadrado más ancho en una malla de ${study.grid * 100} cm. ` +
   `Se cuentan los puestos que alcanzan ${meters(study.width)}. Las puertas se prueban abiertas a 90°. ` +

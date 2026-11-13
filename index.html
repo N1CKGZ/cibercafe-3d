@@ -25,6 +25,7 @@
           <div class="segmented" role="group" aria-label="Cámara">
             <button id="iso" type="button" aria-pressed="true">Isométrica</button>
             <button id="top" type="button" aria-pressed="false">Superior</button>
+            <button id="tour-start" type="button" aria-pressed="false" class="tour-btn">Iniciar recorrido</button>
           </div>
           <div class="camera-tools" role="group" aria-label="Zoom y encuadre">
             <button id="out" type="button" aria-label="Alejar">−</button>
@@ -35,6 +36,29 @@
         <div id="viewport" class="viewport">
           <div id="labels" aria-hidden="true"></div>
           <div id="network-labels" aria-hidden="true"></div>
+          <div id="tour-hud" class="tour-hud" hidden>
+            <div class="tour-header">
+              <div class="tour-actions" role="group" aria-label="Acciones de recorrido">
+                <button id="tour-exit" type="button">Salir del recorrido</button>
+                <button id="tour-reset" type="button">Volver a la entrada</button>
+                <button id="tour-iso" type="button">Vista isométrica</button>
+                <button id="tour-door" type="button">Puerta técnica: Abierta</button>
+              </div>
+              <div id="tour-zone" class="tour-zone" aria-live="polite">Zona: Entrada principal</div>
+            </div>
+            <div id="tour-target" class="tour-target" hidden aria-live="polite"></div>
+            <div class="tour-hints">
+              <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Moverse</span>
+              <span><kbd>Shift</kbd> Correr</span>
+              <span><kbd>E</kbd> Puerta técnica</span>
+              <span><kbd>Mouse</kbd> Mirar</span>
+              <span><kbd>Esc</kbd> Liberar cursor</span>
+            </div>
+            <div id="tour-prompt" class="tour-prompt" hidden>
+              <p>Cursor liberado · Haz clic en la pantalla para reanudar el recorrido</p>
+            </div>
+            <div class="tour-reticle" aria-hidden="true"></div>
+          </div>
           <p id="renderer-error" hidden>El visor requiere un navegador con WebGL 2 habilitado.</p>
         </div>
         <div class="view-footer">

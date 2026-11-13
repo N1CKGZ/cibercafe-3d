@@ -46,3 +46,27 @@ test('las salidas bajo las mesas quedan dentro del mueble y fuera de las sillas 
     }
   }
 });
+
+test('cada equipo seleccionable cuenta con ficha técnica y especificaciones completas', () => {
+  const allEquipment = [
+    ...Array.from({ length: 25 }, (_, i) => `PC-${String(i + 1).padStart(2, '0')}`),
+    'ADM-01',
+    'SRV-01',
+    'RACK-01',
+    'PP-01',
+    'SW-01',
+    'RTR-01',
+    'ONT-01',
+  ];
+
+  for (const id of allEquipment) {
+    const ficha = equipmentFicha(network, id);
+    assert.ok(ficha, `El equipo ${id} debe contar con ficha técnica`);
+    assert.ok(ficha.name && ficha.name.length > 0, `El equipo ${id} debe tener nombre descriptivo`);
+    assert.ok(Array.isArray(ficha.fields) && ficha.fields.length >= 2, `El equipo ${id} debe tener campos de especificación`);
+    for (const [key, val] of ficha.fields) {
+      assert.ok(key && key.length > 0, `Campo en ${id} debe tener clave no vacía`);
+      assert.ok(val && val.length > 0, `Campo ${key} en ${id} debe tener valor no vacío`);
+    }
+  }
+});

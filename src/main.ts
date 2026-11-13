@@ -50,6 +50,13 @@ const tourHud = element<HTMLElement>('tour-hud');
 const tourPrompt = element<HTMLElement>('tour-prompt');
 const tourZone = element<HTMLElement>('tour-zone');
 const tourTarget = element<HTMLElement>('tour-target');
+const tourTargetName = element<HTMLElement>('tour-target-name');
+const tourTargetBtn = element<HTMLButtonElement>('tour-target-btn');
+const tourModal = element<HTMLElement>('tour-modal');
+const tourModalTitle = element<HTMLElement>('tour-modal-title');
+const tourModalBody = element<HTMLElement>('tour-modal-body');
+const tourModalClose = element<HTMLButtonElement>('tour-modal-close');
+const tourModalResume = element<HTMLButtonElement>('tour-modal-resume');
 
 function onTourState(active: boolean, locked: boolean) {
   tourStart.hidden = active;
@@ -57,13 +64,16 @@ function onTourState(active: boolean, locked: boolean) {
   element('iso').setAttribute('aria-pressed', String(!active && !rackView));
   element('top').setAttribute('aria-pressed', 'false');
   tourHud.hidden = !active;
-  tourPrompt.hidden = !active || locked;
-  if (!active) tourTarget.hidden = true;
+  tourPrompt.hidden = !active || locked || !tourModal.hidden;
+  if (!active) {
+    tourTarget.hidden = true;
+    tourModal.hidden = true;
+  }
   const hint = document.querySelector('.view-hint');
   if (hint) {
     hint.textContent = active
       ? (locked
-        ? 'W/A/S/D: Moverse · Shift: Correr · Mouse: Mirar · E: Puerta técnica · Esc: Liberar cursor'
+        ? 'W/A/S/D: Moverse · Shift: Correr · Mouse: Mirar · E: Puerta técnica · F: Ficha · Esc: Liberar cursor'
         : 'Cursor liberado · Haz clic en la pantalla para reanudar o usa los botones superiores')
       : (rackView ? 'Selecciona un equipo o un puerto · Rueda para acercar' : 'Arrastra para orbitar · Rueda para acercar');
   }
@@ -80,9 +90,37 @@ function onZoneState(zone: string) {
 function onInspectTarget(target: string | null) {
   if (target) {
     tourTarget.hidden = false;
-    tourTarget.textContent = `Al frente: ${target} · Clic para ficha técnica`;
+    tourTargetName.textContent = `Al frente: ${target}`;
   } else {
     tourTarget.hidden = true;
+  }
+}
+
+function openTourModal(id: string) {
+  if (!id) return;
+  selectEquipment(id);
+  const ficha = equipmentFicha(network, id);
+  if (!ficha) return;
+  viewer?.unlockPointer();
+  tourModalTitle.textContent = `${id} · ${ficha.name}`;
+  tourModalBody.replaceChildren();
+  const dl = document.createElement('dl');
+  for (const [name, value] of ficha.fields) {
+    const term = document.createElement('dt');
+    term.textContent = name;
+    const detail = document.createElement('dd');
+    detail.textContent = value;
+    dl.append(term, detail);
+  }
+  tourModalBody.append(dl);
+  tourModal.hidden = false;
+  tourPrompt.hidden = true;
+}
+
+function closeTourModal(resumeTour = true) {
+  tourModal.hidden = true;
+  if (resumeTour && viewer?.isTourActive()) {
+    viewer.requestPointerLock();
   }
 }
 
@@ -100,6 +138,7 @@ try {
     open => onDoorState(open),
     zone => onZoneState(zone),
     target => onInspectTarget(target),
+    targetId => openTourModal(targetId),
   );
 } catch (error) {
   element('renderer-error').hidden = false;
@@ -346,16 +385,33 @@ tourStart.addEventListener('click', () => {
   viewer?.startTour();
 });
 tourExit.addEventListener('click', () => {
+  closeTourModal(false);
   viewer?.exitTour();
 });
 tourReset.addEventListener('click', () => {
+  closeTourModal(false);
   viewer?.resetTourPosition();
 });
 tourIso.addEventListener('click', () => {
+  closeTourModal(false);
   viewer?.exitTour();
 });
 tourDoor.addEventListener('click', () => {
   viewer?.toggleTechDoor();
+});
+tourTargetBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const target = viewer?.getCurrentLookTarget();
+  if (target) openTourModal(target);
+});
+tourModalClose.addEventListener('click', () => closeTourModal(false));
+tourModalResume.addEventListener('click', () => closeTourModal(true));
+
+window.addEventListener('keydown', (e) => {
+  if (!tourModal.hidden && (e.code === 'Escape' || e.code === 'KeyF')) {
+    e.preventDefault();
+    closeTourModal(true);
+  }
 });
 element('criteria').textContent =
   `El visor busca la ruta que admite el cuadrado más ancho en una malla de ${study.grid * 100} cm. ` +

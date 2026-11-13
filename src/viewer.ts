@@ -24,6 +24,26 @@ const colors = {
   warn: 0xce8d42, route: 0x08665b, blocked: 0xaa3f33, door: 0xb88048, service: 0x3c899b,
 };
 
+function resolveEquipmentId(obj: T.Object3D | null): string | null {
+  let cur: T.Object3D | null = obj;
+  while (cur && cur.type !== 'Scene') {
+    if (cur.name && (
+      cur.name.startsWith('PC-') ||
+      cur.name === 'ADM-01' ||
+      cur.name === 'SRV-01' ||
+      cur.name === 'RACK-01' ||
+      cur.name === 'PP-01' ||
+      cur.name === 'SW-01' ||
+      cur.name === 'RTR-01' ||
+      cur.name === 'ONT-01'
+    )) {
+      return cur.name;
+    }
+    cur = cur.parent;
+  }
+  return null;
+}
+
 export function createViewer(
   container: HTMLElement,
   labelLayer: HTMLElement,
@@ -33,6 +53,7 @@ export function createViewer(
   onDoorState?: (open: boolean) => void,
   onZoneState?: (zone: string) => void,
   onInspectTarget?: (target: string | null) => void,
+  onOpenFicha?: (targetId: string) => void,
 ) {
   const renderer = new T.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -86,6 +107,7 @@ export function createViewer(
   const startLookTarget = new T.Vector3(startPosition.x, eyeHeight, 5.0);
 
   let isTour = false;
+  let currentLookTarget: string | null = null;
   let techDoorOpen = true;
   let currentModel: Model | undefined;
   let activeObstacles: Obstacle[] = [];
@@ -119,6 +141,11 @@ export function createViewer(
       case 'KeyE':
         if (isNearTechDoor({ x: fpCamera.position.x, z: fpCamera.position.z }, 2.5)) {
           toggleTechDoor();
+        }
+        break;
+      case 'KeyF':
+        if (currentLookTarget) {
+          onOpenFicha?.(currentLookTarget);
         }
         break;
     }
@@ -639,6 +666,7 @@ export function createViewer(
 
   function startTour() {
     isTour = true;
+    currentLookTarget = null;
     controls.enabled = false;
     resetTourPosition();
     for (const mesh of upperWalls) mesh.visible = true;
@@ -661,6 +689,7 @@ export function createViewer(
   function exitTour() {
     if (!isTour) return;
     isTour = false;
+    currentLookTarget = null;
     moveKeys.forward = false;
     moveKeys.backward = false;
     moveKeys.left = false;
@@ -727,13 +756,15 @@ export function createViewer(
         toggleTechDoor();
         return;
       }
+      if (currentLookTarget) {
+        onOpenFicha?.(currentLookTarget);
+        return;
+      }
       const equipHit = raycaster.intersectObjects([...rackMeshes, ...objects.children], true)[0];
-      if (equipHit && equipHit.distance < 4.5) {
-        const name = equipHit.object.name || equipHit.object.parent?.name;
-        if (name) {
-          onEquipment(name, equipHit.object.userData?.port);
-          return;
-        }
+      const clickedId = (equipHit && equipHit.distance < 4.5) ? resolveEquipmentId(equipHit.object) : null;
+      if (clickedId) {
+        onOpenFicha?.(clickedId);
+        return;
       }
       if (!fpControls.isLocked) {
         fpControls.lock();
@@ -773,11 +804,10 @@ export function createViewer(
 
       raycaster.setFromCamera(centerReticle, fpCamera);
       const equipHit = raycaster.intersectObjects([...rackMeshes, ...objects.children], true)[0];
-      if (equipHit && equipHit.distance < 3.5) {
-        const name = equipHit.object.name || equipHit.object.parent?.name;
-        onInspectTarget?.(name || null);
-      } else {
-        onInspectTarget?.(null);
+      const targetId = (equipHit && equipHit.distance < 4.0) ? resolveEquipmentId(equipHit.object) : null;
+      if (targetId !== currentLookTarget) {
+        currentLookTarget = targetId;
+        onInspectTarget?.(targetId);
       }
     } else {
       controls.update();
@@ -815,5 +845,7 @@ export function createViewer(
     toggleTechDoor,
     isTourActive: () => isTour,
     requestPointerLock: () => { if (isTour) fpControls.lock(); },
+    unlockPointer: () => { if (fpControls.isLocked) fpControls.unlock(); },
+    getCurrentLookTarget: () => currentLookTarget,
   };
 }

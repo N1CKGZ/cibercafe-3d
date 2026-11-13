@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#111827" />
+    <link rel="icon" href="data:," />
+    <title>Cibercafé 3D · Inspección geométrica</title>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true"></div>
+        <div><span class="eyebrow">M3D-02 / CABLEADO FÍSICO</span><h1>Cibercafé 3D</h1></div>
+      </div>
+      <div class="header-stats">
+        <span><strong>10 × 10 m</strong> Local</span>
+        <span><strong>25</strong> Clientes</span>
+        <span><strong>1:25</strong> Maqueta</span>
+      </div>
+    </header>
+    <main class="workspace">
+      <section class="viewer" aria-label="Visor tridimensional">
+        <div class="viewbar">
+          <div class="segmented" role="group" aria-label="Cámara">
+            <button id="iso" type="button" aria-pressed="true">Isométrica</button>
+            <button id="top" type="button" aria-pressed="false">Superior</button>
+          </div>
+          <div class="camera-tools" role="group" aria-label="Zoom y encuadre">
+            <button id="out" type="button" aria-label="Alejar">−</button>
+            <button id="in" type="button" aria-label="Acercar">+</button>
+            <button id="center" type="button">Centrar</button>
+          </div>
+        </div>
+        <div id="viewport" class="viewport">
+          <div id="labels" aria-hidden="true"></div>
+          <div id="network-labels" aria-hidden="true"></div>
+          <p id="renderer-error" hidden>El visor requiere un navegador con WebGL 2 habilitado.</p>
+        </div>
+        <div class="view-footer">
+          <div class="legend" aria-label="Leyenda de capas">
+            <span><i class="desk-key"></i> Mesa</span><span><i class="chair-key"></i> Silla</span>
+            <span><i class="aisle-key"></i> Paso libre</span><span><i class="door-key"></i> Estrechamiento / giro</span>
+          </div>
+          <span class="view-hint">Arrastra para orbitar · Rueda para acercar</span>
+        </div>
+      </section>
+      <aside class="inspector" aria-labelledby="inspector-title">
+        <div class="inspector-title">
+          <span class="eyebrow">PLANTA Y MOBILIARIO</span>
+          <h2 id="inspector-title">Inspección geométrica</h2>
+        </div>
+        <section class="controls" aria-label="Escenario">
+          <label for="layout">Distribución</label>
+          <select id="layout"></select>
+          <p class="muted" id="layout-note"></p>
+          <label for="chair">Estado de las sillas</label>
+          <select id="chair"></select>
+          <p class="muted" id="chair-note"></p>
+          <div class="toggles">
+            <label><input id="dimensions" type="checkbox" checked /> Cotas en metros</label>
+            <label><input id="circulation" type="checkbox" checked /> Envolventes y circulación</label>
+          </div>
+        </section>
+        <section class="network-panel" aria-labelledby="network-title">
+          <h3 id="network-title">Cableado estructurado</h3>
+          <p id="network-note" class="muted"></p>
+          <fieldset id="network-controls">
+            <legend class="sr-only">Capas y selección de red</legend>
+            <div class="toggles">
+              <label><input id="ducts" type="checkbox" checked /> Canalizaciones</label>
+              <label><input id="cables" type="checkbox" checked /> Cat6</label>
+              <label><input id="outlets" type="checkbox" /> Etiquetas de tomas</label>
+            </div>
+            <label class="sr-only" for="network-link">Seleccionar computadora</label>
+            <select id="network-link"></select>
+            <div class="network-actions">
+              <button type="button" id="network-all" aria-pressed="false">Mostrar todos</button>
+              <button type="button" id="network-clear">Limpiar selección</button>
+            </div>
+            <p id="network-reading" aria-live="polite"></p>
+            <p id="network-detail" class="muted"></p>
+            <details>
+              <summary>Equipos del rack</summary>
+              <p class="muted">De arriba abajo: PP-01, SW-01, RTR-01 y ONT-01. SRV-01 se apoya en una repisa independiente.</p>
+            </details>
+          </fieldset>
+        </section>
+        <section class="equipment-panel" aria-labelledby="equipment-title">
+          <h3 id="equipment-title">Equipos y VLAN</h3>
+          <p class="muted">Diseño previsto según N-01 y S-01.</p>
+          <div class="toggles">
+            <label><input id="logical" type="checkbox" /> Vista VLAN</label>
+            <label><input id="equipment-labels" type="checkbox" /> Etiquetas de equipos</label>
+            <label><input id="highlight-ports" type="checkbox" checked /> Resaltar puertos</label>
+          </div>
+          <div id="vlan-legend" hidden></div>
+          <div class="network-actions">
+            <button id="rack-view" type="button" aria-pressed="false">Ampliar cuarto técnico</button>
+          </div>
+          <label class="sr-only" for="equipment">Seleccionar equipo</label>
+          <select id="equipment"></select>
+          <div id="equipment-card" aria-live="polite"></div>
+          <div id="port-grid"></div>
+        </section>
+        <section class="measurement" aria-labelledby="passage-title">
+          <div class="section-heading"><h3 id="passage-title">Medición de pasillo</h3></div>
+          <label class="sr-only" for="passage">Pasillo</label>
+          <select id="passage"></select>
+          <div class="reading" aria-live="polite">
+            <strong id="width"></strong><span id="width-status"></span>
+          </div>
+          <p class="muted" id="passage-detail"></p>
+        </section>
+        <section class="access" aria-labelledby="access-title">
+          <h3 id="access-title">Ruta hasta la salida</h3>
+          <label class="sr-only" for="destination">Punto que se quiere inspeccionar</label>
+          <select id="destination"></select>
+          <p id="route-result" aria-live="polite"></p>
+          <p class="muted" id="route-pinch"></p>
+          <div id="checks" class="checks"></div>
+          <details>
+            <summary>Criterio de medición</summary>
+            <p class="muted" id="criteria"></p>
+          </details>
+        </section>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

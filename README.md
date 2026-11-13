@@ -1,19 +1,65 @@
-# Cibercafé 3D · Visor local
+# Cibercafé 3D · Visor 3D Interactivo y Recorrido Virtual
 
-Visor local de la planta de 10 × 10 m, abierta y sin techo. Representa 25 estaciones cliente, ADM-01, SRV-01, el rack, la espera y los accesos. Abre en **A2**, la distribución principal aprobada, con las sillas ocupadas. A se conserva como comparación y las distribuciones original y B siguen disponibles como antecedentes.
+Visor interactivo en Three.js de la planta arquitectónica y técnica de 10 × 10 m para un cibercafé con 25 puestos cliente, administración (ADM-01), servidor Mac mini M4 (SRV-01), cuarto técnico con rack de telecomunicaciones, cableado estructurado Cat6 y asignación de VLANs.
 
-## Ejecutar
+**Demo en línea (GitHub Pages):** [https://n1ckgz.github.io/cibercafe-3d/](https://n1ckgz.github.io/cibercafe-3d/)
 
-Node.js 24 recomendado. El visor usa Three.js 0.187.0 con tipos 0.187.0, TypeScript 7.0.2 y Vite 8.3.8. Los paquetes quedan fijados en el lockfile. Se requiere conexión para descargar dependencias durante la instalación inicial. El visor funciona en localhost con sus recursos locales.
+---
+
+## Características
+
+- **Distribución A2 validada**: Corredor central de 1.30 m, accesibilidad a los 25 puestos cliente y recepción sin interferencias de evacuación.
+- **Vistas de cámara**: Isométrica, Superior (planta con cotas), Detalle de rack y Recorrido en primera persona.
+- **Recorrido en primera persona (Walkthrough)**:
+  - Navegación realista con altura de ojos a 1.65 m.
+  - Desplazamiento con teclado <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> y orientación con ratón (`PointerLockControls`).
+  - Carrera con <kbd>Shift</kbd>.
+  - Sistema de colisiones por volumen cilíndrico ($r = 0.22\text{ m}$) contra muros, mesas, sillas, rack y puerta técnica.
+  - Puerta técnica interactiva (abrir/cerrar con tecla <kbd>E</kbd> o clic).
+  - Apertura directa de ficha técnica (<kbd>F</kbd> o clic) al apuntar hacia cualquier equipo cliente o técnico.
+  - Detección en tiempo real de zonas del local en el HUD superior.
+- **Red y cableado estructurado**:
+  - 26 enlaces Cat6 bajo piso con cálculo de tramos horizontales, verticales y reserva.
+  - Mapeo de 48 puertos en patch panel y switch administrable.
+  - Separación lógica en VLAN 10 (Clientes), VLAN 20 (Administración) y VLAN 30 (Servidor y gestión).
+- **Fichas técnicas interactivas**:
+  - Especificaciones de hardware, tomas RJ45, puertos de patch panel/switch, IP y asignación de VLAN.
+
+---
+
+## Ejecutar localmente
+
+Node.js 20+ recomendado. Construido con Three.js 0.187.0, TypeScript 7 y Vite 8.
 
 ```sh
+# Instalar dependencias
 npm ci
+
+# Servidor de desarrollo
 npm run dev
+
+# Pruebas automatizadas (17 pruebas)
+npm test
+
+# Compilación para producción
+npm run build
+
+# Vista previa de producción
+npm run preview
 ```
 
-Abrir la URL que imprime Vite, normalmente `http://127.0.0.1:5173/`. Para comprobar el proyecto, ejecutar `npm test` y `npm run build`. El resultado compilado queda en `dist/` y puede revisarse con `npm run preview`.
+---
 
-En A2, el corredor central mide 1.30 m entre mesas, el mínimo de la ruta principal es de aproximadamente 1.28 m y el paso entre filas con sillas ocupadas es de 0.73 m. Los 25 puestos pasan el ensayo geométrico de 0.60 m y no se detectaron solapes en los tres estados. [Comparación de A y A2](AJUSTE_GEOMETRICO.md)
+## Arquitectura técnica
+
+- `src/model.ts`: Modelo paramétrico del local, cotas y mobiliario en distribución A2.
+- `src/geometry.ts`: Algoritmos de inspección geométrica, cálculo de rutas y holguras.
+- `src/collision.ts`: Motor de detección de obstáculos, colisiones cilíndricas y zonas de navegación.
+- `src/network.ts`: Modelado tridimensional de ductos bajo piso, tomas y tendido de cable Cat6.
+- `src/network-design.ts`: Diseño lógico de red, mapa de puertos 1–48 y fichas técnicas.
+- `src/viewer.ts`: Renderizado WebGL Three.js, iluminación, sombras, cámaras y controles PointerLock.
+- `src/main.ts`: Controlador de interfaz de usuario, eventos, panel de inspección y modal interactivo.
+
 
 ## Evaluación inicial de geometría
 

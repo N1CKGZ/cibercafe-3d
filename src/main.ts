@@ -6,6 +6,11 @@ import { createViewer } from './viewer.ts';
 import { buildNetwork } from './network.ts';
 import { equipmentFicha, equipmentNames, portMap, technicalEquipment, trunkColor, vlans } from './network-design.ts';
 import type { PortPair } from './network-design.ts';
+import { buildMaquette, computerParts, families, toMM } from './maquette.ts';
+import type { ComponentKind } from './maquette.ts';
+import { fabricationUI } from './fabrication-ui.ts';
+import { printableFamilies } from './cut-layout.ts';
+import { constructionGuide } from './construction-ui.ts';
 
 function element<T extends HTMLElement = HTMLElement>(id: string) {
   return document.getElementById(id) as T;
@@ -147,6 +152,152 @@ try {
 
 let model = createModel(defaultLayout, 'occupied');
 let inspection = inspect(model);
+const maquette = buildMaquette(model, network);
+const fabrication = fabricationUI(maquette);
+const guide = constructionGuide(maquette, network,
+  (phase, open) => viewer?.setConstructionPhase(phase, open),
+  (kind, id) => {
+    guide.close();
+    selectMaterial(kind, id);
+  });
+const materialItem = element<HTMLSelectElement>('material-item');
+const modes = [element('mode-technical'), element('mode-maquette')];
+let isMaquette = false;
+let previousLayout = '';
+let previousChair = '';
+const itemKey = (kind: ComponentKind, id: string) => `${kind}:${id}`;
+const formatQuantity = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
+const measure = (n: number, unit: string) => `${formatQuantity.format(n)} ${unit}`;
+
+for (const [kind, family] of Object.entries(families)) {
+  const group = document.createElement('optgroup');
+  group.label = family.name;
+  group.append(...maquette.items.filter(item => item.kind === kind).map(item =>
+    new Option(item.id, itemKey(item.kind, item.id))));
+  materialItem.append(group);
+}
+materialItem.value = itemKey('desk', 'PC-01');
+
+function selectMaterial(kind: ComponentKind, id: string) {
+  materialItem.value = itemKey(kind, id);
+  showMaterial();
+}
+
+function showMaterial() {
+  const item = maquette.items.find(item => itemKey(item.kind, item.id) === materialItem.value);
+  if (!item) return;
+  const family = families[item.kind];
+  const card = element('material-card');
+  const title = document.createElement('h3');
+  title.textContent = `${family.name} · ${item.id}`;
+  const fields = document.createElement('dl');
+  const projected = item.kind === 'cable' || item.kind === 'duct';
+  const totals = maquette.totals(item.kind).map(m => `${m.name}: ${measure(m.net, m.unit)}`).join(' · ');
+  const componentDims = item.kind === 'computer'
+    ? maquette.items.filter(part => part.id === item.id && computerParts.includes(part.kind))
+    : [item];
+  const formatParts = (mini: boolean) => componentDims.map(part => {
+    const units = mini ? 'mm' : 'm';
+    const values = mini ? part.scaled ?? part.dims.map(toMM) : part.dims;
+    const dimensions = values.map((n, i) => `${part.labels[i]} ${measure(n, units)}`).join(' · ');
+    return componentDims.length > 1 ? `${families[part.kind].name} (${dimensions})` : dimensions;
+  }).join(' · ');
+  for (const [label, value] of [
+    ['Material', family.material], ['Medidas del modelo', formatParts(false)],
+    [projected ? 'Maqueta 1:25 · trazado visible' : 'Maqueta 1:25', formatParts(true)],
+    ['Cantidad del conjunto', String(maquette.counts[item.kind])], ['Herramientas', family.tools],
+    ['Fabricación', family.steps], ['Piezas', family.pattern], ['Material neto del conjunto', totals],
+  ]) {
+    const dt = document.createElement('dt');
+    const dd = document.createElement('dd');
+    dt.textContent = label;
+    dd.textContent = value;
+    fields.append(dt, dd);
+  }
+  card.replaceChildren(title, fields);
+  const actions = document.createElement('div');
+  actions.className = 'network-actions';
+  const guide = document.createElement('button');
+  guide.type = 'button';
+  guide.textContent = 'Descargar guía';
+  guide.addEventListener('click', () => fabrication.guide(item));
+  if (printableFamilies.includes(item.kind)) {
+    const template = document.createElement('button');
+    template.type = 'button';
+    template.textContent = 'Generar plantilla';
+    template.addEventListener('click', () => fabrication.template(item));
+    actions.append(template);
+  }
+  actions.append(guide);
+  if (computerParts.includes(item.kind)) {
+    const computer = document.createElement('button');
+    computer.type = 'button';
+    computer.textContent = 'Ver computadora completa';
+    computer.addEventListener('click', () => selectMaterial('computer', item.id));
+    actions.append(computer);
+  }
+  card.append(actions);
+}
+
+function showMaterialsInventory() {
+  const table = document.createElement('table');
+  const header = table.createTHead().insertRow();
+  for (const text of ['Material', 'Neto', 'Con margen']) {
+    const th = document.createElement('th');
+    th.textContent = text;
+    header.append(th);
+  }
+  const body = table.createTBody();
+  const totals = maquette.totals();
+  for (const row of totals) {
+    const tr = body.insertRow();
+    for (const value of [row.name, measure(row.net, row.unit), measure(row.gross, row.unit)]) {
+      tr.insertCell().textContent = value;
+    }
+  }
+  const counts = document.createElement('p');
+  counts.className = 'muted';
+  const foam = totals.find(m => m.id === 'foam')!;
+  const channel = totals.find(m => m.id === 'channel')!;
+  counts.textContent = `${maquette.counts.monitor} monitores · ${maquette.counts.desk} escritorios cliente · ${maquette.counts.counter} mostrador · ` +
+    `${maquette.counts.chair} sillas · ${maquette.counts.tower} gabinetes · ${maquette.counts.mouse} mouse · ${totals.find(m => m.id === 'cardstock')!.pieces} recortes de cartulina · ` +
+    `${maquette.counts.duct} tiras de canaleta (${measure(channel.linearNet!, 'm')}). Cartón pluma: ${measure(foam.base - foam.net, 'cm²')} de vanos ` +
+    `se añaden al neto para cortar paños completos. El 15 % se aplica sobre ${measure(foam.base, 'cm²')}.`;
+  element('material-totals').replaceChildren(table, counts);
+}
+
+function setMode(enabled: boolean) {
+  if (enabled === isMaquette) return;
+  viewer?.exitTour();
+  if (!enabled) guide.close();
+  isMaquette = enabled;
+  if (enabled) {
+    previousLayout = layout.value;
+    previousChair = chair.value;
+    layout.value = defaultLayout;
+    chair.value = 'occupied';
+    element('iso').click();
+  } else {
+    layout.value = previousLayout;
+    chair.value = previousChair;
+  }
+  document.body.classList.toggle('maquette-mode', enabled);
+  element('maquette-panel').hidden = !enabled;
+  const inspector = document.querySelector('.inspector')!;
+  inspector.setAttribute('aria-labelledby', enabled ? 'maquette-title' : 'inspector-title');
+  tourStart.hidden = enabled;
+  for (const [index, button] of modes.entries()) button.setAttribute('aria-pressed', String(index === +enabled));
+  viewer?.setMaquette(enabled, selectMaterial);
+  viewer?.layers(!enabled && dimensions.checked, !enabled && circulation.checked);
+  showMaterial();
+  updateModel();
+  if (enabled) document.querySelector('.view-hint')!.textContent = 'Selecciona una pieza para ver sus materiales.';
+}
+
+modes[0].addEventListener('click', () => setMode(false));
+modes[1].addEventListener('click', () => setMode(true));
+materialItem.addEventListener('change', showMaterial);
+showMaterialsInventory();
 function updateModel() {
   model = createModel(layout.value as LayoutId, chair.value as ChairState);
   inspection = inspect(model);
@@ -180,9 +331,11 @@ function showNetwork() {
   element('network-detail').textContent = enabled && link
     ? `${link.panelPort} → ${link.outlet} → ${link.equipment}. ${meters(link.horizontal)} horizontales + ${meters(link.vertical)} verticales + ${meters(link.reserve)} de reserva.`
     : '';
-  viewer?.showNetwork(network, { enabled, ducts, cables, outlets, showAll, selected: link?.id,
-    logical: logical.checked, equipmentLabels: equipmentLabels.checked,
-    equipment: equipment.value, ports: highlightPorts.checked ? activePort ?? equipmentFicha(network, equipment.value)?.ports ?? {} : {} });
+  viewer?.showNetwork(network, { enabled, ducts: isMaquette || ducts, cables: isMaquette || cables,
+    outlets: !isMaquette && outlets, showAll: isMaquette || showAll, selected: isMaquette ? undefined : link?.id,
+    logical: !isMaquette && logical.checked, equipmentLabels: !isMaquette && equipmentLabels.checked,
+    equipment: equipment.value, ports: !isMaquette && highlightPorts.checked
+      ? activePort ?? equipmentFicha(network, equipment.value)?.ports ?? {} : {} });
 }
 
 function selectEquipment(id: string, port?: number) {
@@ -371,7 +524,7 @@ for (const view of ['iso', 'top'] as const) {
     element('top').setAttribute('aria-pressed', String(view === 'top'));
     document.querySelector('.view-hint')!.textContent = view === 'iso'
       ? 'Arrastra para orbitar · Rueda para acercar'
-      : 'Clic en un pasillo para medir · Rueda para acercar';
+      : isMaquette ? 'Selecciona una pieza para ver sus materiales.' : 'Clic en un pasillo para medir · Rueda para acercar';
     showNetwork();
   });
 }

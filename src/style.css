@@ -236,3 +236,72 @@ details p { margin-top: 5px; }
   .header-stats span { font-size: 10px; }
 }
 @media (max-width: 395px) { .header-stats span:last-child { display: none; } }
+#maquette-panel[hidden], .maquette-mode .inspector > :not(#maquette-panel), .maquette-mode .view-footer .legend { display: none; }
+.maquette-mode #maquette-panel { border-top: 0; padding: 0; }
+#maquette-panel > p, #maquette-panel select { margin: 8px 0; }
+#maquette-panel h3 { margin: 10px 0 5px; }
+#maquette-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; margin: 8px 0; font-size: 12px; }
+#maquette-panel dt { color: var(--muted); }
+#maquette-panel dd { margin: 0; overflow-wrap: anywhere; }
+#maquette-panel table { width: 100%; border-collapse: collapse; margin-top: 7px; font-size: 11px; }
+#maquette-panel th, #maquette-panel td { text-align: left; padding: 5px 3px; border-bottom: 1px solid var(--line); }
+.viewbar { flex-wrap: wrap; }
+.modes { margin-right: auto; }
+
+.fabrication-dialog {
+  width: min(1080px, 96vw);
+  max-height: 92dvh;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  color: var(--ink);
+}
+.fabrication-dialog::backdrop { background: #17233580; }
+.fabrication-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.fabrication-toolbar h2 { margin: 0 auto 0 0; }
+.fabrication-toolbar label { display: flex; align-items: center; gap: 6px; }
+.fabrication-dialog > p { margin: 7px 0; }
+.purchase-table { margin: 10px 0; overflow-x: auto; }
+.purchase-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.purchase-table th, .purchase-table td { text-align: left; padding: 8px 6px; vertical-align: top; border-bottom: 1px solid var(--line); }
+.purchase-table input { width: 73px; padding: 5px; border: 1px solid var(--line); border-radius: 4px; }
+.purchase-table td:nth-child(3) { min-width: 175px; }
+.purchase-table td:nth-child(3) span, .purchase-table small { display: block; margin-top: 4px; color: var(--muted); }
+#purchase-total { font-weight: 650; }
+#print-pages { display: grid; justify-items: center; gap: 12px; background: #edf1f6; padding: 10px; }
+.template-page { width: fit-content; max-width: 100%; background: white; box-shadow: 0 1px 4px #1a2b3d32; }
+.template-page svg { display: block; max-width: 100%; height: auto; }
+.template-page text { fill: #152237; font: 2.7px Arial, sans-serif; }
+.template-page .template-title { font-size: 4.2px; font-weight: 700; }
+.template-page .part-label { font-size: 2.25px; }
+.template-page .cut, .template-page .fold { fill: none; stroke: #0d1420; stroke-width: .22; }
+.template-page .fold { stroke: #426582; stroke-dasharray: 1 .65; }
+
+@media print {
+  html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+  body > :not(#template-dialog), #template-dialog .fabrication-toolbar { display: none !important; }
+  #template-dialog[open] {
+    position: static; display: block; inset: auto; width: auto; height: auto;
+    max-width: none; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; overflow: visible;
+  }
+  #template-dialog::backdrop { display: none; }
+  #print-pages { display: block; background: none; margin: 0; padding: 0; }
+  .template-page { max-width: none; box-shadow: none; break-inside: avoid; }
+  .template-page:not(:last-child) { break-after: page; }
+  .template-page svg { max-width: none; height: auto; }
+}
+
+.fabrication-toolbar [hidden] { display: none; }
+#batch-summary { margin: 0 0 12px; font-size: 12px; }
+#batch-materials p { margin: 5px 0; }
+#batch-materials ul { padding-left: 22px; }
+@media print { #batch-summary { display: none; } }
+
+#construction-guide { margin: 12px 0; font-size: 12px; line-height: 1.45; }
+#construction-guide h4 { margin: 12px 0 4px; font-size: 13px; }
+#construction-guide ul { margin: 4px 0 8px; padding-left: 17px; }
+#construction-guide details { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+#construction-guide details > div > label { display: block; margin-top: 4px; }
+#construction-guide .guide-task { display: flex; align-items: flex-start; gap: 6px; margin: 5px 0; }
+#construction-guide .guide-task input { margin: 3px 0 0; accent-color: var(--accent); }

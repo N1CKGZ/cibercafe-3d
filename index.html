@@ -22,6 +22,10 @@
     <main class="workspace">
       <section class="viewer" aria-label="Visor tridimensional">
         <div class="viewbar">
+          <div class="segmented modes" role="group" aria-label="Modo del visor">
+            <button id="mode-technical" type="button" aria-pressed="true">Modelo técnico</button>
+            <button id="mode-maquette" type="button" aria-pressed="false">Maqueta y materiales</button>
+          </div>
           <div class="segmented" role="group" aria-label="Cámara">
             <button id="iso" type="button" aria-pressed="true">Isométrica</button>
             <button id="top" type="button" aria-pressed="false">Superior</button>
@@ -89,6 +93,27 @@
         </div>
       </section>
       <aside class="inspector" aria-labelledby="inspector-title">
+        <section id="maquette-panel" hidden aria-labelledby="maquette-title">
+          <h2 id="maquette-title">Maqueta y materiales</h2>
+          <p class="muted">A2 · escala 1:25 · local de 40 × 40 cm · base de 50 × 50 cm.</p>
+          <button id="construction-toggle" type="button" aria-expanded="false" aria-controls="construction-guide">Guía de construcción</button>
+          <div id="construction-guide" hidden></div>
+          <div id="maquette-catalog">
+          <label for="material-item" class="sr-only">Componente de la maqueta</label>
+          <select id="material-item"></select>
+          <div id="material-card" aria-live="polite"></div>
+          <div class="network-actions">
+            <button id="station-template" type="button">Plantilla de estación cliente</button>
+            <button id="production-template" type="button">Impresión por lotes</button>
+            <button id="purchase-open" type="button">Lista de materiales</button>
+          </div>
+          <details id="material-inventory" open>
+            <summary>Inventario de construcción</summary>
+            <p class="muted">Material neto y estimación con 15 % de margen. Las medidas de equipos son las del modelo.</p>
+            <div id="material-totals"></div>
+          </details>
+          </div>
+        </section>
         <div class="inspector-title">
           <span class="eyebrow">PLANTA Y MOBILIARIO</span>
           <h2 id="inspector-title">Inspección geométrica</h2>
@@ -169,6 +194,38 @@
         </section>
       </aside>
     </main>
+    <dialog id="template-dialog" class="fabrication-dialog" aria-labelledby="template-title">
+      <div class="fabrication-toolbar">
+        <h2 id="template-title">Plantilla de fabricación</h2>
+        <label>Formato <select id="template-format"><option value="a4">A4</option><option value="letter">Carta</option></select></label>
+        <label id="production-group" hidden>Lote <select id="production-scope"><option value="clients">25 puestos cliente</option><option value="admin">Administración</option></select></label>
+        <label id="support-group">Soporte <select id="monitor-support"><option value="original">Original · 2.2 mm</option><option value="simple">Ancho didáctico · 5.2 mm</option></select></label>
+        <button id="template-print" type="button">Imprimir o guardar PDF</button>
+        <form method="dialog"><button type="submit">Cerrar</button></form>
+      </div>
+      <details id="batch-summary" hidden open>
+        <summary>Hojas, material y códigos de corte</summary>
+        <div id="batch-materials"></div>
+      </details>
+      <div id="print-pages"></div>
+    </dialog>
+    <dialog id="purchase-dialog" class="fabrication-dialog" aria-labelledby="purchase-title">
+      <div class="fabrication-toolbar">
+        <h2 id="purchase-title">Lista de materiales</h2>
+        <button id="purchase-csv" type="button">Exportar CSV</button>
+        <button id="purchase-summary" type="button">Exportar resumen</button>
+        <form method="dialog"><button type="submit">Cerrar</button></form>
+      </div>
+      <p id="purchase-spacing" class="muted"></p>
+      <p class="muted">Presupuesto escolar independiente de P-01. Captura el precio en MXN por hoja, palito o rollo. Las sugerencias combinan el acomodo de piezas con la reserva de material del 15 %.</p>
+      <div class="purchase-table">
+        <table>
+          <thead><tr><th>Material</th><th>Cantidad</th><th>Presentación</th><th>Compra sugerida</th><th>Precio MXN</th><th>Importe</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="purchase-total" aria-live="polite"></p>
+    </dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

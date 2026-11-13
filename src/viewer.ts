@@ -1,4 +1,8 @@
 import * as T from 'three';
+import { displayBase, hvacPieces, models, projectedY, scale } from './maquette.ts';
+import type { ComponentKind } from './maquette.ts';
+import { floorRegister } from './construction.ts';
+import type { PhaseId } from './construction.ts';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { entrance, furniture, leafThickness, leaves, leafTip, rackHeight, room, server, study, techDoor, technical, waiting, wallParts, walls } from './model.ts';
@@ -88,8 +92,19 @@ export function createViewer(
   const annotations = new T.Group();
   const highlight = new T.Group();
   const networkGroup = new T.Group();
+  const maquetteExtras = new T.Group();
+  const guideExtras = new T.Group();
+  scene.add(guideExtras);
+  let guidePhase: PhaseId | null = null;
+  let registerOpen = false;
+  const guideVisibility = new Map<T.Object3D, boolean>();
+  let guideNetwork: Network | undefined;
+  maquetteExtras.visible = false;
+  let isMaquette = false;
+  let onMaterial: ((kind: ComponentKind, id: string) => void) | undefined;
+  const technicalMaterials = new Map<T.Mesh, T.Material | T.Material[]>();
   const networkLayer = container.querySelector('#network-labels')!;
-  scene.add(architecture, objects, zones, annotations, highlight, networkGroup);
+  scene.add(architecture, objects, zones, annotations, highlight, networkGroup, maquetteExtras);
 
   const camera = new T.OrthographicCamera(-8, 8, 8, -8, 0.1, 100);
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -220,6 +235,32 @@ export function createViewer(
     return mesh;
   }
 
+  const paperColors: Record<ComponentKind, number> = {
+    computer: 0x26262d, monitor: 0x22232b, tower: 0x252633, keyboard: 0x3b3d45, mouse: 0x3b3d45,
+    desk: 0xbf9259, counter: 0xbf9259, chair: 0x46574f, wall: 0xf3ebdd, window: 0xa3ccdb, door: 0xa8764c,
+    rack: 0x4a4140, server: 0xbec0bd, cable: 0x205aca, duct: 0xc2915c,
+    minisplit: 0xf1e5d0, condenser: 0xd6ba9d,
+  };
+  const paperGlass = new T.MeshStandardMaterial({ color: paperColors.window, transparent: true, opacity: 0.45, depthWrite: false });
+  const paperCutaway = new T.MeshStandardMaterial({ color: paperColors.wall, transparent: true, opacity: 0.30, depthWrite: false });
+  function applyPaper(mesh: T.Mesh) {
+    const kind = mesh.userData.materialKind as ComponentKind;
+    if (!isMaquette || !kind) return;
+    if (!technicalMaterials.has(mesh)) technicalMaterials.set(mesh, mesh.material);
+    mesh.material = kind === 'window' ? paperGlass
+      : kind === 'wall' && ghostWalls.includes(mesh) && view !== 'top' ? paperCutaway
+      : solid(mesh.userData.paperColor ?? paperColors[kind]);
+  }
+  function tag(mesh: T.Mesh, kind: ComponentKind, id: string, paperColor?: number) {
+    Object.assign(mesh.userData, { materialKind: kind, materialId: id, paperColor });
+    applyPaper(mesh);
+    return mesh;
+  }
+  function restoreMaterials() {
+    for (const [mesh, material] of technicalMaterials) mesh.material = material;
+    technicalMaterials.clear();
+  }
+
   const footprint = { x: room.w / 2, z: room.d / 2, w: room.w, d: room.d };
   // BoxGeometry orders the faces +X, -X, +Y, -Y, +Z, -Z. The floor
   // is the slab's top face, with no second surface at the same depth.
@@ -229,6 +270,11 @@ export function createViewer(
   slab.scale.set(footprint.w, room.slab, footprint.d);
   slab.castShadow = slab.receiveShadow = true;
   architecture.add(slab);
+  const displaySlab = box(maquetteExtras, { ...footprint, w: displayBase.width * scale, d: displayBase.depth * scale },
+    -room.slab - displayBase.thickness * scale, displayBase.thickness * scale, 0xab8054);
+  for (const piece of hvacPieces) {
+    tag(box(maquetteExtras, piece, piece.y, piece.h, paperColors[piece.kind]), piece.kind, piece.id);
+  }
   const grid = new T.GridHelper(28, 28, 0xa9bbca, 0xbfcddb);
   grid.position.set(room.w / 2, -room.slab - 0.005, room.d / 2);
   architecture.add(grid);
@@ -240,6 +286,8 @@ export function createViewer(
       const rect = part.glass ? { ...part.rect, [wall.axis === 'x' ? 'd' : 'w']: 0.035 } : part.rect;
       const mesh = box(architecture, rect, part.bottom, part.top - part.bottom, colors.wall, part.glass ? glass : undefined);
       if (near && !part.glass) ghostWalls.push(mesh);
+      const window = part.glass && wall.openings.find(o => (o.start + o.end) / 2 === (wall.axis === 'x' ? rect.x : rect.z));
+      tag(mesh, window ? 'window' : 'wall', window ? window.id : wall.id);
       if (part.bottom > 0) upperWalls.push(mesh);
       if (wall.id === 'Cuarto frontal') rackForeground.push(mesh);
     }
@@ -255,6 +303,8 @@ export function createViewer(
       const localRect: Rect = { x: leaf.width / 2, z: 0, w: leaf.width, d: leafThickness };
       const pane = box(techDoorPivot, localRect, 0, leaf.height, colors.door, material);
       const rail = box(techDoorPivot, localRect, 0, 0.045, colors.door);
+      tag(pane, 'door', leaf.id);
+      tag(rail, 'door', leaf.id);
       rackForeground.push(pane, rail);
       techDoorMeshes.push(pane, rail);
       pane.userData.isTechDoor = true;
@@ -262,8 +312,8 @@ export function createViewer(
     } else {
       const tip = leafTip(leaf, Math.PI / 2);
       const rect = { x: leaf.hinge.x, z: (tip.z + leaf.hinge.z) / 2, w: leafThickness, d: leaf.width };
-      box(architecture, rect, 0, leaf.height, colors.door, material);
-      box(architecture, rect, 0, 0.045, colors.door);
+      tag(box(architecture, rect, 0, leaf.height, colors.door, material), 'door', leaf.id);
+      tag(box(architecture, rect, 0, 0.045, colors.door), 'door', leaf.id);
     }
   }
   // Initialize open at 90 deg (matching baseline anteproyecto)
@@ -288,11 +338,13 @@ export function createViewer(
   const rack = technical.rack;
   const rackMeshes = [box(architecture, rack, 0, rackHeight, colors.pc)];
   rackMeshes[0].name = 'RACK-01';
+  tag(rackMeshes[0], 'rack', 'RACK-01');
   for (const [key, device] of Object.entries(rackDevices)) {
     const { x, y, z } = device.point;
     const color = { panel: 0x59687b, switch: 0x2c5261, router: 0x4b4c69, ont: 0xadb9c4 }[key]!;
     const face = box(architecture, { x, z, w: device.w, d: 0.015 }, y - device.h / 2, device.h, color);
     face.name = device.id;
+    tag(face, 'rack', 'RACK-01', color);
     rackMeshes.push(face);
     for (const [index, port] of devicePorts(device).entries()) {
       const jack = box(architecture, { ...port, w: 0.011, d: 0.002 }, port.y - 0.004, 0.008, 0x102234);
@@ -307,6 +359,7 @@ export function createViewer(
     w: wallX - serverPosition.x, d: 0.07 }, serverPosition.y - 0.065, 0.04, 0x64738a);
   const mac = box(architecture, { ...serverPosition, w: server.w, d: server.d }, serverPosition.y, server.height, 0xc9d3dc);
   mac.name = server.id;
+  tag(mac, 'server', server.id);
   rackMeshes.push(mac);
 
   const overlayMaterials = new Map<string, T.MeshBasicMaterial>();
@@ -347,6 +400,7 @@ export function createViewer(
   }
 
   function showNetwork(network: Network, options: NetworkView) {
+    guideNetwork = network;
     clear(networkGroup);
     networkLayer.replaceChildren();
     networkLabels = [];
@@ -377,7 +431,6 @@ export function createViewer(
     }
     if (!options.enabled) return;
     const selected = network.links.find(link => link.id === options.selected);
-    const projectedY = 0.095;
     const projected = (p: NetworkPoint) => new T.Vector3(p.x, Math.max(p.y, projectedY), p.z);
     const supportMaterial = solid(0x58869b);
     const cableMaterial = solid(0x1266b3);
@@ -392,13 +445,18 @@ export function createViewer(
       mesh.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), delta.normalize());
       mesh.scale.set(width, length, depth);
       networkGroup.add(mesh);
+      return mesh;
     }
     for (const duct of network.ducts) {
       const a = projected(duct.from);
       const b = projected(duct.to);
       const [width, depth] = sectionSize[duct.section];
       if (options.ducts) {
-        bar(a, b, width, depth, supportMaterial);
+        const mesh = bar(a, b, width, depth, supportMaterial);
+        if (mesh) {
+          tag(mesh, 'duct', duct.id);
+          mesh.userData.segment = duct.id;
+        }
         for (const p of [a, b]) {
           const key = p.toArray().join(',');
           const joint = joints.get(key) ?? { point: p, count: 0 };
@@ -408,7 +466,11 @@ export function createViewer(
       }
       if (options.cables && (options.showAll || selected?.segments.includes(duct))) {
         const thickness = selected ? 0.034 : 0.018;
-        bar(cablePoint(a), cablePoint(b), thickness, thickness, selected ? selectedCable : cableMaterial);
+        const mesh = bar(cablePoint(a), cablePoint(b), thickness, thickness, selected ? selectedCable : cableMaterial);
+        if (mesh) {
+          tag(mesh, 'cable', selected?.id ?? duct.cables[0]);
+          mesh.userData.segment = duct.id;
+        }
       }
     }
     for (const { point, count } of joints.values()) {
@@ -416,7 +478,7 @@ export function createViewer(
       box(networkGroup, { ...point, w: 0.092, d: 0.092 }, point.y - 0.025, 0.049,
         0x385970, solid(0x385970));
     }
-    if (options.cables) {
+    if (options.cables && !isMaquette) {
       const panel = devicePorts(rackDevices.panel);
       const ports = devicePorts(rackDevices.switch);
       const patchIndices = view === 'rack' || options.showAll ? network.links.map((_, i) => i)
@@ -441,6 +503,7 @@ export function createViewer(
       if (!options.outlets && selected !== link) continue;
       addNetworkLabel(link.outlet, new T.Vector3(x, furniture.deskHeight + 0.42, z), selected === link);
     }
+    applyGuide();
   }
 
   function station(group: T.Group, item: Model['admin'], admin: boolean) {
@@ -450,28 +513,35 @@ export function createViewer(
     furnitureGroup.name = item.id;
     group.add(furnitureGroup);
     const top = furniture.deskHeight;
-    box(furnitureGroup, desk, top - 0.055, 0.055, colors.table);
+    const slab = models.desktop.thickness;
+    tag(box(furnitureGroup, desk, top - slab, slab, colors.table), admin ? 'counter' : 'desk', item.id);
     for (const x of [minX(desk) + 0.07, maxX(desk) - 0.07]) {
       for (const z of [minZ(desk) + 0.07, maxZ(desk) - 0.07]) {
-        box(furnitureGroup, { x, z, w: 0.045, d: 0.045 }, 0, top - 0.055, colors.legs);
+        tag(box(furnitureGroup, { x, z, w: 0.045, d: 0.045 }, 0, top - slab, colors.legs), admin ? 'counter' : 'desk', item.id, 0x9f794e);
       }
     }
     const x = admin ? chair.x : desk.x;
     const towerSide = admin ? 1 : -1;
-    box(furnitureGroup, { x: x + towerSide * 0.31, z: desk.z, w: 0.17, d: Math.min(desk.d - 0.10, 0.34) },
-      0.035, 0.37, colors.pc);
+    const t = models.tower, m = models.monitor, k = models.keyboard, s = models.seat;
+    tag(box(furnitureGroup, { x: x + towerSide * 0.31, z: desk.z, w: t.w, d: Math.min(desk.d - 0.10, t.maxD) },
+      0.035, t.h, colors.pc), 'tower', item.id);
     const monitorZ = desk.z - Math.cos(orientation) * desk.d * 0.23;
-    box(furnitureGroup, { x, z: monitorZ, w: 0.17, d: 0.13 }, top, 0.018, colors.pc);
-    box(furnitureGroup, { x, z: monitorZ, w: 0.055, d: 0.04 }, top + 0.018, 0.095, colors.pc);
-    box(furnitureGroup, { x, z: monitorZ, w: 0.48, d: 0.035 }, top + 0.104, 0.27, colors.pc);
-    box(furnitureGroup, { x, z: monitorZ + Math.cos(orientation) * 0.019, w: 0.44, d: 0.005 }, top + 0.124, 0.23, colors.screen);
-    box(furnitureGroup, { x, z: desk.z + Math.cos(orientation) * desk.d * 0.2, w: 0.33, d: 0.12 }, top, 0.018, colors.pc);
-    const seat = { ...chair, w: chair.w * 0.82, d: Math.min(chair.d * 0.84, 0.40) };
-    box(furnitureGroup, { ...seat, w: 0.065, d: 0.065 }, 0.03, 0.42, colors.legs);
-    box(furnitureGroup, { ...seat, w: seat.w * 0.85, d: 0.065 }, 0.025, 0.04, colors.legs);
-    box(furnitureGroup, { ...seat, w: 0.065, d: seat.d * 0.92 }, 0.025, 0.04, colors.legs);
-    box(furnitureGroup, seat, 0.43, 0.065, colors.seat);
-    box(furnitureGroup, { ...seat, z: (isFront ? maxZ(seat) : minZ(seat)), d: 0.055 }, 0.48, 0.33, colors.seat);
+    tag(box(furnitureGroup, { x, z: monitorZ, w: 0.17, d: m.d }, top, 0.018, colors.pc), 'monitor', item.id);
+    tag(box(furnitureGroup, { x, z: monitorZ, w: 0.055, d: 0.04 }, top + 0.018, 0.095, colors.pc), 'monitor', item.id);
+    tag(box(furnitureGroup, { x, z: monitorZ, w: m.w, d: m.screenD }, top + 0.104, m.screenH, colors.pc), 'monitor', item.id);
+    tag(box(furnitureGroup, { x, z: monitorZ + Math.cos(orientation) * 0.019, w: 0.44, d: 0.005 }, top + 0.124, 0.23, colors.screen), 'monitor', item.id, 0x718b9b);
+    tag(box(furnitureGroup, { x, z: desk.z + Math.cos(orientation) * desk.d * 0.2, w: k.w, d: k.d }, top, k.h, colors.pc), 'keyboard', item.id);
+    if (isMaquette) {
+      const mouse = models.mouse;
+      tag(box(furnitureGroup, { ...mouse, x: x + 0.24,
+        z: desk.z + Math.cos(orientation) * desk.d * 0.2 }, top, mouse.h, colors.pc), 'mouse', item.id);
+    }
+    const seat = { ...chair, w: s.w, d: Math.min(chair.d * 0.84, s.maxD) };
+    tag(box(furnitureGroup, { ...seat, w: 0.065, d: 0.065 }, 0.03, 0.42, colors.legs), 'chair', item.id);
+    tag(box(furnitureGroup, { ...seat, w: seat.w * 0.85, d: 0.065 }, 0.025, 0.04, colors.legs), 'chair', item.id);
+    tag(box(furnitureGroup, { ...seat, w: 0.065, d: seat.d * 0.92 }, 0.025, 0.04, colors.legs), 'chair', item.id);
+    tag(box(furnitureGroup, seat, 0.43, 0.065, colors.seat), 'chair', item.id);
+    tag(box(furnitureGroup, { ...seat, z: (isFront ? maxZ(seat) : minZ(seat)), d: 0.055 }, 0.48, s.backH, colors.seat), 'chair', item.id);
     plane(zones, desk, 0.015, colors.deskMark, 0.35);
     outline(zones, desk, top + 0.006, colors.deskMark);
     plane(zones, chair, 0.021, colors.chairMark, 0.43);
@@ -559,6 +629,10 @@ export function createViewer(
 
   function clear(group: T.Group) {
     for (const object of group.children) {
+      object.traverse(child => {
+        guideVisibility.delete(child);
+        if (child instanceof T.Mesh) technicalMaterials.delete(child);
+      });
       if (object instanceof T.Line) {
         object.geometry.dispose();
         object.material.dispose();
@@ -575,8 +649,9 @@ export function createViewer(
     const { clientWidth: w, clientHeight: h } = container;
     if (w === 0 || h === 0) return;
     const ratio = w / h;
-    const halfHeight = view === 'rack' ? Math.max(0.70, 0.82 / ratio)
-      : Math.max(view === 'top' ? 5.85 : 6.95, 6.4 / ratio);
+    const halfHeight = isMaquette ? Math.max(view === 'top' ? 7.05 : 8.65, 8.3 / ratio)
+      : view === 'rack' ? Math.max(0.70, 0.82 / ratio)
+        : Math.max(view === 'top' ? 5.85 : 6.95, 6.4 / ratio);
     camera.left = -halfHeight * ratio;
     camera.right = halfHeight * ratio;
     camera.top = halfHeight;
@@ -590,6 +665,7 @@ export function createViewer(
   }
 
   function setView(next: CameraView) {
+    restoreGuideVisibility();
     if (isTour) {
       isTour = false;
       controls.enabled = true;
@@ -618,10 +694,109 @@ export function createViewer(
     for (const mesh of rackForeground) mesh.visible = view !== 'rack' && (view === 'iso' || !upperWalls.includes(mesh));
     for (const mesh of ghostWalls) {
       mesh.material = view !== 'top' ? ghost : solids.get(colors.wall)!;
+      technicalMaterials.delete(mesh);
+      applyPaper(mesh);
       mesh.castShadow = view === 'top';
     }
     controls.update();
     controls.enableDamping = true;
+    fit();
+    applyGuide();
+    renderer.shadowMap.needsUpdate = true;
+  }
+
+  function restoreGuideVisibility() {
+    for (const [object, visible] of guideVisibility) object.visible = visible;
+    guideVisibility.clear();
+  }
+
+  function applyGuide() {
+    restoreGuideVisibility();
+    clear(guideExtras);
+    displaySlab.position.y = -room.slab - displayBase.thickness * scale / 2;
+    if (!isMaquette || !guidePhase || guidePhase === 'finish' || !guideNetwork) {
+      renderer.shadowMap.needsUpdate = true;
+      return;
+    }
+    const phase = guidePhase;
+    function keep(object: T.Object3D, visible: boolean) {
+      guideVisibility.set(object, object.visible);
+      object.visible = object.visible && visible;
+    }
+    keep(objects, phase === 'stations');
+    keep(networkGroup, phase === 'floor');
+    for (const child of architecture.children) {
+      if (child === slab || child === grid) continue;
+      const kind = child.userData.materialKind;
+      const architectural = ['wall', 'window', 'door'].includes(kind) || child === techDoorPivot;
+      keep(child, phase === 'walls' ? architectural : phase === 'equipment' && !architectural);
+    }
+    for (const child of maquetteExtras.children) {
+      if (child !== displaySlab) keep(child, phase === 'equipment');
+    }
+    if (phase === 'base' && currentModel) {
+      for (const wall of walls) {
+        const length = wall.end - wall.start;
+        const middle = (wall.start + wall.end) / 2;
+        const trace = wall.axis === 'x'
+          ? { x: middle, z: wall.fixed, w: length, d: room.wall }
+          : { x: wall.fixed, z: middle, w: room.wall, d: length };
+        outline(guideExtras, trace, 0.008, 0x9b642f);
+      }
+      for (const item of [...currentModel.stations, currentModel.admin]) outline(guideExtras, item.desk, 0.01, 0x46767a);
+      outline(guideExtras, technical.rack, 0.01, 0x46767a);
+    }
+    if (phase === 'floor') {
+      const hatch = floorRegister(guideNetwork);
+      const gap = hatch.minimumGapMm * scale / 1000;
+      displaySlab.position.y -= gap;
+      outline(guideExtras, hatch, 0.016, 0xe07c18);
+      if (registerOpen) {
+        keep(slab, false);
+        const floor = (x1: number, x2: number, z1: number, z2: number) =>
+          box(guideExtras, { x: (x1 + x2) / 2, z: (z1 + z2) / 2, w: x2 - x1, d: z2 - z1 },
+            -room.slab, room.slab, 0xf0e2c9);
+        floor(0, room.w, 0, minZ(hatch));
+        floor(0, room.w, maxZ(hatch), room.d);
+        floor(0, minX(hatch), minZ(hatch), maxZ(hatch));
+        floor(maxX(hatch), room.w, minZ(hatch), maxZ(hatch));
+        const trunk = guideNetwork.ducts.find(duct => duct.id === hatch.trunk)!;
+        for (const mesh of networkGroup.children) {
+          if (mesh.userData.segment === hatch.trunk) keep(mesh, false);
+        }
+        for (const [start, end] of [[trunk.from.z, minZ(hatch)], [maxZ(hatch), trunk.to.z]]) {
+          box(guideExtras, { x: hatch.x, z: (start + end) / 2, w: sectionSize['80×40'][0], d: end - start },
+            projectedY, sectionSize['80×40'][1], 0xb38859);
+          line(guideExtras, [new T.Vector3(hatch.x, projectedY + 0.043, start),
+            new T.Vector3(hatch.x, projectedY + 0.043, end)], 0x205aca);
+        }
+        const bottom = -hatch.ductDepthMm * scale / 1000;
+        box(guideExtras, { x: hatch.x, z: hatch.z, w: sectionSize['80×40'][0], d: hatch.d },
+          bottom, sectionSize['80×40'][1], 0xb38859);
+        for (const offset of [-0.019, 0, 0.019]) {
+          line(guideExtras, [new T.Vector3(hatch.x + offset, hatch.ductY + 0.022, minZ(hatch)),
+            new T.Vector3(hatch.x + offset, hatch.ductY + 0.022, maxZ(hatch))], 0x205aca);
+        }
+      }
+    }
+    renderer.shadowMap.needsUpdate = true;
+  }
+
+  function setConstructionPhase(phase: PhaseId | null, open: boolean) {
+    guidePhase = phase;
+    registerOpen = open;
+    applyGuide();
+  }
+
+  function setMaquette(enabled: boolean, select?: (kind: ComponentKind, id: string) => void) {
+    isMaquette = enabled;
+    onMaterial = select;
+    maquetteExtras.visible = enabled;
+    if (enabled) scene.traverse(object => { if (object instanceof T.Mesh) applyPaper(object); });
+    else restoreMaterials();
+    const floorEdge = enabled ? solid(0xb69067) : base;
+    slab.material = [floorEdge, floorEdge, solid(enabled ? 0xf0e2c9 : colors.floor), floorEdge, floorEdge, floorEdge];
+    grid.position.y = -room.slab - (enabled ? displayBase.thickness * scale : 0) - 0.005;
     fit();
     renderer.shadowMap.needsUpdate = true;
   }
@@ -772,6 +947,19 @@ export function createViewer(
       return;
     }
 
+    if (isMaquette) {
+      const hits = raycaster.intersectObjects([architecture, objects, networkGroup, maquetteExtras], true)
+        .filter(({ object }) => {
+          for (let parent: T.Object3D | null = object; parent; parent = parent.parent) {
+            if (!parent.visible) return false;
+          }
+          return object.userData.materialKind;
+        });
+      const hit = hits.find(({ object }) => !(object instanceof T.Mesh) || object.material !== paperCutaway) ?? hits[0];
+      if (hit) onMaterial?.(hit.object.userData.materialKind, hit.object.userData.materialId);
+      return;
+    }
+
     const first = zones.visible ? raycaster.intersectObjects(picks)[0] : undefined;
     const rackHit = raycaster.intersectObjects(rackMeshes)[0];
     if (rackHit && (!first || rackHit.distance < first.distance)) {
@@ -827,7 +1015,7 @@ export function createViewer(
     renderer.render(scene, activeCamera);
   });
   return {
-    showZones, showNetwork, setView, center: () => setView(view),
+    showZones, showNetwork, setView, setMaquette, setConstructionPhase, center: () => setView(view),
     zoom(factor: number) { camera.zoom = T.MathUtils.clamp(camera.zoom * factor, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); },
     layers(dimensions: boolean, circulation: boolean) {
       userDimensions = dimensions;

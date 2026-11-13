@@ -29,7 +29,7 @@ Visor interactivo en Three.js de la planta arquitectónica y técnica de 10 × 1
 
 ## Ejecutar localmente
 
-Node.js 20+ recomendado. Construido con Three.js 0.187.0, TypeScript 7 y Vite 8.
+Node.js 24 recomendado para ejecutar la misma versión que usa GitHub Actions. Construido con Three.js 0.187.0, TypeScript 7 y Vite 8.
 
 ```sh
 # Instalar dependencias
@@ -38,7 +38,7 @@ npm ci
 # Servidor de desarrollo
 npm run dev
 
-# Pruebas automatizadas (17 pruebas)
+# Pruebas automatizadas (26 pruebas)
 npm test
 
 # Compilación para producción
@@ -85,7 +85,7 @@ El piso y la base se dibujan como una sola losa con un material claro en la cara
 
 Selecciona una computadora con un clic en el modelo o desde «Cableado estructurado». El visor resalta su enlace y muestra el metraje con reserva. «Mostrar todos» agrupa los cables que comparten tramos. Las capas de canalización, Cat6 y etiquetas se pueden alternar. Los recorridos están disponibles en A2, que es la planta usada para el cálculo. Las líneas horizontales proyectadas representan ductos bajo piso.
 
-La [memoria de cálculo actualizada](../02_DOCUMENTACION_MODELO/R02_A2_ACTUALIZADO.md) incluye el mapa de tomas, metrajes por tramo y los supuestos constructivos.
+El visor muestra el mapa de tomas y los metrajes estimados por tramo. La revisión constructiva siguiente indica los supuestos del trazado.
 
 ## Revisión constructiva del trazado bajo piso · M3D-02
 
@@ -96,3 +96,69 @@ Los registros de paso se proponen en la entrada de la troncal desde el rack y en
 Los giros de 90° son vértices del esquema. Como referencia de anteproyecto, cuatro veces el diámetro supuesto de 6.5 mm equivalen a 26 mm de radio. Verificar en ficha el radio en reposo y durante el tendido, el espacio útil de cada codo o registro y el acceso para guiar los haces. Una sección nominal de 25 × 16 mm no demuestra que una curva quepa en el accesorio. La propuesta bajo piso queda pendiente de validación constructiva, incluida la profundidad disponible y la separación de instalaciones.
 
 En «Equipos y VLAN», pulsa «Ampliar cuarto técnico» para inspeccionar las caras del gabinete y el servidor en su repisa independiente. La vista de detalle oculta el tabique frontal del cuarto y su hoja para facilitar la selección. El panel y el switch muestran su mapa de 48 puertos y permiten resaltar la correspondencia física. «Vista VLAN» colorea la asignación lógica. Los trazos ámbar representan latiguillos físicos. Las fichas describen el diseño de N-01 y S-01, con DHCP para clientes y servicios de servidor previstos.
+
+## MQ-02 · Maqueta y materiales
+
+Abre «Maqueta y materiales» y selecciona una pieza en la escena o en el catálogo. Las fichas muestran las medidas del modelo en metros y de la pieza en milímetros. La vista usa A2, con 40 × 40 cm de local y una base centrada de 50 × 50 cm. Las envolventes HVAC son aproximaciones físicas para recortar cartón. Las condensadoras indican las caras exteriores previstas en T-01.
+
+El cálculo de hilo suma los 26 recorridos proyectados, incluidos los ascensos representados. La canaleta miniatura se computa una sola vez por tramo compartido. La longitud técnica de Cat6 y su reserva quedan fuera del material escolar. El inventario aplica un margen provisional de 15 % y considera paños completos para cortar los muros. Ajustar pestañas, uniones y soportes al montar el prototipo.
+
+Para preparar futuras plantillas basta dibujar los rectángulos de las fichas en milímetros en un documento A4 o carta, imprimir al 100 % con «Ajustar a página» desactivado y medir una barra de comprobación de 100 mm antes de cortar. Las piezas de 400 mm requieren un trazo directo sobre el material o una plantilla en mosaico con solapes. Las funciones de impresión y compra se describen en el corte 2. La guía MQ-03 muestra la propuesta de registro desmontable.
+
+## MQ-02 · Corte 2
+
+En «Maqueta y materiales», abre «Plantilla de estación cliente» para imprimir el juego de PC-01 en una hoja. El prototipo actual contiene 21 piezas para monitor, teclado, mouse, gabinete, escritorio y silla. «Generar plantilla» abre cada componente por separado. Selecciona A4 o carta e imprime al 100 %, sin ajustar a página ni agregar encabezados del navegador. Mide la barra de 100 mm en el papel. Transfiere cada pieza a su material. Las líneas continuas indican corte y las discontinuas, doblez.
+
+«Lista de materiales» propone formatos iniciales editables para cotizar en papelería. El acomodo por filas prueba ambos giros de 90° y deja 5 mm de borde y 2 mm entre cortes. Las piezas tabuladas ocupan el rectángulo que contiene sus pestañas. Un formato que no admite una pieza pide cambiar la presentación. La compra sugerida toma el mayor resultado entre las hojas o unidades del acomodo y las necesarias para la reserva del 15 %. El método no garantiza el mínimo absoluto de hojas. Los precios quedan vacíos al abrir el visor y se usan para calcular únicamente el presupuesto escolar. Exporta la cotización en CSV, el resumen de cantidades o la guía del componente seleccionado.
+
+### Conciliación de cantidades del corte 2
+
+Las cifras de cartulina de este apartado corresponden al inventario anterior a la incorporación del mouse. El apartado de lotes indica los totales vigentes.
+
+- **25 escritorios de cliente y un mostrador administrativo.** Los tableros de cliente son de 40 × 20 mm y el de recepción de 66 × 26 mm. Se requieren 104 patas de 27.8 mm entre ambos grupos. Hay 26 monitores, teclados, gabinetes y sillas.
+- **Cartón pluma.** Los seis paños completos suman 1,839.968 cm². Los 278.08 cm² de vanos dejan 1,561.888 cm² instalados. El margen sobre los paños completos agrega 275.9952 cm² y da 2,115.9632 cm² de referencia. El acomodo de compra usa los seis rectángulos completos.
+- **317 recortes de cartulina.** Cada puesto lleva tres piezas de monitor, seis de gabinete, una de teclado y dos de silla. Se suman cuatro bandas de rack y una tapa de servidor. Las pestañas de 1.5 mm en el frente y reverso del gabinete añaden 31.356 cm² netos respecto al primer corte. El área pasa de 422.40 a 453.76 cm² y el rectángulo de corte por pieza lleva la referencia con margen a 529.89 cm².
+- **60 tiras de canaleta y 26 hilos.** Las tiras suman 2.2202 m y 42.1304 cm² al usar el ancho de cada tramo. El hilo suma 10.6764 m de recorrido visible. La base de 500 × 500 mm, el piso de 400 × 400 mm y los soportes siguen sujetos al material disponible y al prototipo.
+
+| Material | Neto | Formato inicial editable | Compra sugerida |
+| --- | ---: | --- | ---: |
+| Cartón pluma | 1,561.89 cm² | 500 × 700 mm | 1 hoja |
+| Cartón para base de 5 mm | 2,500.00 cm² | 550 × 700 mm | 1 hoja |
+| Cartón rígido | 1,952.03 cm² | 500 × 700 mm | 1 hoja |
+| Cartón delgado de 1 mm | 130.04 cm² | 210 × 297 mm | 1 hoja |
+| Cartulina | 453.76 cm² | 216 × 279 mm | 2 hojas |
+| Acetato | 192.72 cm² | 216 × 279 mm | 1 hoja |
+| Cartulina rígida para canaleta | 42.13 cm² | 216 × 279 mm | 1 hoja |
+| Goma EVA | 72.32 cm² | 216 × 279 mm | 1 hoja |
+| Papel para pantallas | 42.10 cm² | 210 × 297 mm | 1 hoja |
+| Madera | 2.89 m | 150 mm por palito | 23 palitos |
+| Hilo azul | 10.68 m | 10 m por rollo | 2 rollos |
+
+Las hojas de cartulina y de cartulina rígida para canaleta se cotizan por separado. El inventario cubre los cortes modelados. Las tiras representan las canaletas, y los soportes de condensadoras y uniones de piso requieren una prueba de montaje. Las plantillas de vanos, puertas y mostrador quedan fuera de este corte.
+
+### Preparación de lotes
+
+«Plantilla de estación cliente» genera el prototipo actualizado de PC-01 con 21 piezas. Incluye un mouse plano de cartulina de 2.6 × 4.2 mm. En las plantillas que incluyen monitor puedes elegir el soporte original de 2.2 × 5.4 mm o el soporte didáctico de 5.2 × 5.4 mm. El soporte ancho conserva la longitud y los dobleces. Sustituye una pieza por otra. La lista de compra y la guía descargable usan la opción seleccionada.
+
+«Impresión por lotes» separa los 25 clientes de ADM-01. Los lotes agrupan los cortes por material. El visor muestra el conteo de hojas y el significado de los códigos impresos. Cada corte lleva el ID de su puesto. A4 y carta usan 10 mm de margen, admiten giros de 90° y conservan las medidas de corte. Imprime al 100 % y mide la barra de 100 mm. Las hojas de madera son guías para transferir la longitud de las patas.
+
+| Material | Clientes · piezas / hojas | Clientes · neto original / ancho | Administración · piezas / hojas |
+| --- | ---: | ---: | ---: |
+| Cartulina | 325 / 3 | 436.98 / 441.03 cm² | 13 / 1 |
+| Cartón rígido | 50 / 1 | 208.84 cm² | 2 / 1 |
+| Goma EVA | 25 / 1 | 69.54 cm² | 1 / 1 |
+| Papel para pantallas | 25 / 1 | 40.48 cm² | 1 / 1 |
+| Madera | 100 / 1 | 2.78 m | 4 / 1 |
+| Total | 525 / 7 | | 21 / 5 |
+
+Administración usa un monitor, teclado, mouse, gabinete y silla del mismo despiece. Su tablero es de 66 × 26 mm y sus cuatro patas miden 27.8 mm. Para todo el proyecto, los 26 mouse elevan los recortes de cartulina de 317 a 343. El área neta de cartulina pasa a 456.60 cm² con el soporte original o 460.81 cm² con el ancho. Se conservan las 60 tiras de canaleta. El conteo de impresión corresponde a plantillas y el de compra a formatos comerciales configurados. Confirma el soporte, el corte del mouse y el grosor de los materiales con un prototipo físico antes de imprimir la serie.
+
+## MQ-03 · Guía de construcción
+
+En «Maqueta y materiales», abre «Guía de construcción». Usa el selector o «Anterior» y «Siguiente» para recorrer las seis fases. La misma escena pasa del trazado de A2 a la maqueta completa. Las fichas y las plantillas de MQ-02 siguen disponibles. En la fase de estaciones puedes abrir PC-01 y los lotes directamente.
+
+Marca cada tarea cuando la completes. «Lista de preparación» distingue materiales pendientes de compra, pendientes de medir y adquiridos. También registra los conjuntos por fabricar y construidos. Los datos se guardan en el navegador y se pueden exportar en JSON o reiniciar. La prueba física de PC-01 comienza pendiente y su registro depende del usuario.
+
+En la fase de piso, «Abrir registro» muestra una tapa propuesta de 26 × 35.6 mm sobre la troncal, entre las filas 3 y 4. Marca su centro a 203.6 mm desde la izquierda y 195.2 mm desde el fondo del piso. Reutiliza el recorte como tapa, añade pestañas inferiores y una muesca lateral. El detalle admite proyectar los recorridos fuera de la abertura y muestra dentro la profundidad del ducto. Las líneas azules en la abertura ilustran el haz. Los 26 enlaces conservan sus recorridos y metrajes.
+
+A escala, los 8 mm hasta la parte inferior del ducto y los 4.8 mm de piso dejan 3.2 mm de cámara mínima geométrica. Con la base de 5 mm, el piso terminado queda a 13 mm de la mesa como referencia mínima. Antes de pegar, mide cartón, hilo, pestañas y separadores, y verifica el desplazamiento de la tapa con las mesas colocadas. Mide muros y mobiliario desde el nivel del piso terminado. Los separadores y las pestañas se dimensionan tras la prueba en seco.

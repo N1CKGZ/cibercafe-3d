@@ -38,7 +38,7 @@ npm ci
 # Servidor de desarrollo
 npm run dev
 
-# Pruebas automatizadas (26 pruebas)
+# Pruebas automatizadas (34 pruebas)
 npm test
 
 # Compilación para producción
@@ -103,7 +103,7 @@ Abre «Maqueta y materiales» y selecciona una pieza en la escena o en el catál
 
 El cálculo de hilo suma los 26 recorridos proyectados, incluidos los ascensos representados. La canaleta miniatura se computa una sola vez por tramo compartido. La longitud técnica de Cat6 y su reserva quedan fuera del material escolar. El inventario aplica un margen provisional de 15 % y considera paños completos para cortar los muros. Ajustar pestañas, uniones y soportes al montar el prototipo.
 
-Para preparar futuras plantillas basta dibujar los rectángulos de las fichas en milímetros en un documento A4 o carta, imprimir al 100 % con «Ajustar a página» desactivado y medir una barra de comprobación de 100 mm antes de cortar. Las piezas de 400 mm requieren un trazo directo sobre el material o una plantilla en mosaico con solapes. Las funciones de impresión y compra se describen en el corte 2. La guía MQ-03 muestra la propuesta de registro desmontable.
+Para preparar futuras plantillas basta dibujar los rectángulos de las fichas en milímetros en un documento A4 o carta, imprimir al 100 % con «Ajustar a página» desactivado y medir una barra de comprobación de 100 mm antes de cortar. Las piezas de 400 mm requieren un trazo directo sobre el material o una plantilla en mosaico con solapes. Las funciones de impresión y compra se describen en el corte 2. La guía MQ-03 y el apartado de MQ-04 describen el registro desmontable.
 
 ## MQ-02 · Corte 2
 
@@ -161,4 +161,49 @@ Marca cada tarea cuando la completes. «Lista de preparación» distingue materi
 
 En la fase de piso, «Abrir registro» muestra una tapa propuesta de 26 × 35.6 mm sobre la troncal, entre las filas 3 y 4. Marca su centro a 203.6 mm desde la izquierda y 195.2 mm desde el fondo del piso. Reutiliza el recorte como tapa, añade pestañas inferiores y una muesca lateral. El detalle admite proyectar los recorridos fuera de la abertura y muestra dentro la profundidad del ducto. Las líneas azules en la abertura ilustran el haz. Los 26 enlaces conservan sus recorridos y metrajes.
 
-A escala, los 8 mm hasta la parte inferior del ducto y los 4.8 mm de piso dejan 3.2 mm de cámara mínima geométrica. Con la base de 5 mm, el piso terminado queda a 13 mm de la mesa como referencia mínima. Antes de pegar, mide cartón, hilo, pestañas y separadores, y verifica el desplazamiento de la tapa con las mesas colocadas. Mide muros y mobiliario desde el nivel del piso terminado. Los separadores y las pestañas se dimensionan tras la prueba en seco.
+En la propuesta anterior a MQ-04, los 8 mm hasta la parte inferior del ducto y los 4.8 mm de piso dejan 3.2 mm de cámara mínima geométrica. Con la base de 5 mm, el piso terminado queda a 13 mm de la mesa como referencia mínima. Antes de pegar, mide cartón, hilo, pestañas y separadores, y verifica el desplazamiento de la tapa con las mesas colocadas. Mide muros y mobiliario desde el nivel del piso terminado. Los separadores y las pestañas se dimensionan tras la prueba en seco.
+
+## MQ-04 · Corte 1 · Piso técnico y servicios
+
+En «Maqueta y materiales», elige **Piso cerrado**, **Mostrar infraestructura oculta** o **Vista inferior**. Activa Ethernet y electricidad por separado. El celeste indica canaletas de datos, el azul representa el hilo Ethernet, el naranja indica canaletas de electricidad y el negro representa el hilo de alimentación. Los puntos al final de las derivaciones se pueden seleccionar. «Retirar tapa lateral» libera el costado derecho. «Abrir registro superior» conserva el acceso de MQ-03. El acercamiento a las conexiones aísla el puesto y oculta su silla para explicar el montaje.
+
+La base estructural sigue en 500 × 500 × 5 mm. Entre la base y el piso superior de 400 × 400 × 4.8 mm se propone una cámara libre de 12 mm. La superficie terminada queda a 21.8 mm de la mesa. La tapa lateral de 220 × 12 mm se extrae hacia el margen de 50 mm de la base mediante lengüeta. El visor de acetato frontal mide 100 × 12 mm. Ensaya la rigidez del marco, los seis apoyos, el juego de la tapa y la extracción con la maqueta apoyada. La tapa superior reutiliza el recorte de 26 × 35.6 mm del piso.
+
+TE-01 se coloca en el paño posterior del cuarto técnico, separado del rack. E-01/E-02 orientan las etiquetas: CE-01 a CE-05 para filas, CE-06 para administración y CE-07 para la toma dedicada PE-UPS. CE-08 aparece rotulado como alumbrado previsto. Se representa la alimentación del switch, router, ONT y servidor desde UPS-01. El panel de parcheo es pasivo. La electricidad se construye con cartón e hilo, sin clavijas, tomas funcionales ni alimentación real.
+
+Hay 26 cajas bajo las mesas, con una toma dúplex y un RJ45 por puesto, más la toma dedicada del UPS. En las fichas se puede seguir cada TR hasta su Cat6, puerto del panel y puerto del switch. Los cordones entre placa y gabinete, monitor, teclado y mouse pasan bajo el tablero o por detrás de los equipos. La guía mantiene las seis fases y conserva el progreso guardado.
+
+### Cantidades a escala
+
+| Material | Neto | Alcance |
+| --- | ---: | --- |
+| Hilo azul | 12.10 m | 11.25 m de los 26 enlaces a escala, 0.60 m de cordones y remates de puesto, 0.25 m de puentes del rack |
+| Hilo oscuro | 6.12 m | 101 cortes para los circuitos y cordones eléctricos decorativos |
+| Hilo gris claro | 2.25 m | 52 conexiones de teclado y mouse |
+| Cartulina para canaleta de datos | 45.34 cm² | 60 tiras, 2.52 m lineales |
+| Cartulina naranja | 99.18 cm² | 88 tiras, 2.75 m lineales |
+| Cartón rígido adicional | 338.78 cm² | 25 piezas para apoyos y tapa lateral |
+| Cartón delgado adicional | 82.48 cm² | 194 piezas para TE-01, UPS-01, cajas de servicio y sus soportes |
+| Acetato adicional | 12 cm² | 1 ventana frontal |
+| Cartulina blanca y papel adicionales | 23.06 cm² | 86 recortes para placas, símbolos y circuitos, más 2 rótulos |
+
+La lista de compra aplica el 15 % sobre los cortes modelados. Para estos tendidos, las presentaciones iniciales estiman dos rollos azules de 10 m, un rollo oscuro y uno gris claro de 10 m, y una hoja por color de canaleta. Las longitudes de MQ-02 se calcularon sobre la proyección visible. MQ-04 usa el trazado bajo piso a escala y suma los cordones nuevos. El cálculo técnico de Cat6 conserva sus recorridos y sus reservas.
+
+Los ejes bajo el piso quedan a 7.2 mm para datos y 12.4 mm para electricidad. Las holguras son geométricas y dependen del espesor del cartón y del hilo de papelería. Prueba un cruce, un apoyo, el registro y una placa de PC-01 antes de cortar el lote. Usa sobrantes para guías, lengüeta, pestañas y uniones. El siguiente apartado describe la fabricación de climatización del corte 2.
+
+
+## MQ-04 · Corte 2 · Climatización de la maqueta
+
+En «Maqueta y materiales», selecciona un HVAC o CX en el catálogo o sobre la escena. «Acercar equipo» encuadra la cara de trabajo. «Ver par y tuberías» abre un corte del muro para seguir los dos cordones decorativos. Las capacidades de referencia son 24,000 BTU/h para HVAC-01 y HVAC-02, y 12,000 BTU/h para HVAC-03. Las dimensiones y los pasos de muro son provisionales.
+
+CX-02 se centra a 3.70 m y CX-03 a 6.55 m del extremo posterior del muro izquierdo, 0.30 y 0.45 m hacia atrás respecto al corte anterior (12 y 18 mm en maqueta). Conservan sus sectores y alturas. Sus ménsulas y el descenso de las líneas quedan en paños sólidos. En CX-02 el descenso se acerca 1.4 mm a la caja a escala para dejar holgura junto a V5. La planta A2, sus vanos y los circuitos siguen vigentes.
+
+«Generar plantilla» ofrece A4 y carta para los seis equipos. Imprime al 100 %, sin ajuste ni encabezados. Mide la barra de 100 mm antes de transferir el despiece. Usa cartón delgado blanco, marca los dobleces y pega las pestañas de 1.5 mm. La salida de aire y el conjunto de ventilador, cinco aspas y rejilla van impresos sobre sus respectivos frentes. Dobla a 90° dos ménsulas de cartón de 1 mm por condensadora. Cada tira mide 4.8 mm de ancho. Pega al muro la placa de 12 mm y al fondo de la caja el brazo de 13.6 mm (CX-01 y CX-02) o 12.8 mm (CX-03). Alinea ambos brazos antes de pegar la caja. Las tiras impresas de tubería son guías de longitud para el cordón.
+
+| Material de los seis equipos | Cantidad neta | Despiece |
+| --- | ---: | --- |
+| Cartón delgado | 148.99 cm² | 6 bandas, 12 tapas con pestañas y 6 ménsulas |
+| Papel blanco imprimible | 32.76 cm² | 6 frentes |
+| Cordón fino flexible | 445.28 mm | 6 cortes, 512.07 mm con margen del 15 % |
+
+Las cajas sustituyen el despiece inicial de seis caras. La lista de compra usa las mismas hojas de cartón y papel de la maqueta y añade una presentación de cordón de 1 m. Para la primera prueba física, presenta un par en seco, comprueba la rigidez de las ménsulas, el pliegue de las pestañas con el cartón elegido y el diámetro del cordón antes de perforar el muro.

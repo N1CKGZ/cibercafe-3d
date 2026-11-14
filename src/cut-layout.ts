@@ -6,7 +6,9 @@ export const defaultStock: Record<Material, Stock> = {
   board: { width: 500, height: 700 }, thinboard: { width: 210, height: 297 },
   cardstock: { width: 216, height: 279 }, acetate: { width: 216, height: 279 },
   eva: { width: 216, height: 279 }, paper: { width: 210, height: 297 },
-  channel: { width: 216, height: 279 }, wood: { width: 150 }, thread: { width: 10000 },
+  labels: { width: 216, height: 279 }, powerChannel: { width: 216, height: 279 },
+  powerThread: { width: 10000 }, peripheralThread: { width: 10000 },
+  channel: { width: 216, height: 279 }, wood: { width: 150 }, thread: { width: 10000 }, hvacCord: { width: 1000 },
 };
 export const sheetMargin = 5;
 export const cutGap = 2;
@@ -102,9 +104,11 @@ export const printMargin = 10;
 export const printChrome = 84;
 export const printableFamilies = ['monitor', 'keyboard', 'mouse', 'tower', 'desk', 'chair'];
 
+export const climatePrintableFamilies = ['minisplit', 'condenser'];
+
 export function layoutTemplate(cuts: Cut[], format: PrintFormat) {
   const paper = printableFormats[format];
-  const labels = cuts.map(cut => ({ cut, width: Math.max(cut.width + 4, 32), height: (cut.height ?? 1.8) + 11 }));
+  const labels = cuts.map(cut => ({ cut, width: Math.max(cut.width + 4, cut.kind === 'condenser' ? 45 : cut.kind === 'minisplit' ? 49 : 32), height: (cut.height ?? 1.8) + 11 }));
   return packSheets(labels, { width: paper.width - 2 * printMargin, height: paper.height - 2 * printMargin - printChrome },
     1, 3, false);
 }

@@ -1,3 +1,4 @@
+import { buildInfrastructure, panel } from './infrastructure.ts';
 import './style.css';
 import { inspect, maxX, meters, minX } from './geometry.ts';
 import { chairStates, createModel, layouts, study } from './model.ts';
@@ -9,7 +10,7 @@ import type { PortPair } from './network-design.ts';
 import { buildMaquette, computerParts, families, toMM } from './maquette.ts';
 import type { ComponentKind } from './maquette.ts';
 import { fabricationUI } from './fabrication-ui.ts';
-import { printableFamilies } from './cut-layout.ts';
+import { climatePrintableFamilies, printableFamilies } from './cut-layout.ts';
 import { constructionGuide } from './construction-ui.ts';
 
 function element<T extends HTMLElement = HTMLElement>(id: string) {
@@ -153,9 +154,54 @@ try {
 let model = createModel(defaultLayout, 'occupied');
 let inspection = inspect(model);
 const maquette = buildMaquette(model, network);
+const infrastructure = buildInfrastructure(model, network);
+const floorView = element<HTMLSelectElement>('floor-view');
+const floorEthernet = element<HTMLInputElement>('floor-ethernet');
+const floorPower = element<HTMLInputElement>('floor-power');
+const floorSide = element<HTMLInputElement>('floor-side');
+const floorRegisterControl = element<HTMLButtonElement>('floor-register');
+let currentPhase: Parameters<NonNullable<typeof viewer>['setConstructionPhase']>[0] = null;
+let hatchOpen = false;
+let inferiorActive = false;
+function applyFloor() {
+  viewer?.showFloor(floorView.value as 'closed' | 'hidden' | 'bottom', floorEthernet.checked, floorPower.checked, floorSide.checked);
+  floorRegisterControl.disabled = floorView.value !== 'closed';
+  const inferior = floorView.value === 'bottom';
+  if (inferior) for (const id of ['iso', 'top']) element(id).setAttribute('aria-pressed', 'false');
+  else if (inferiorActive) {
+    element('iso').setAttribute('aria-pressed', 'true');
+  }
+  inferiorActive = inferior;
+}
+function applyRegister() {
+  floorRegisterControl.setAttribute('aria-pressed', String(hatchOpen));
+  floorRegisterControl.textContent = hatchOpen ? 'Cerrar registro superior' : 'Abrir registro superior';
+  viewer?.setConstructionPhase(currentPhase, hatchOpen);
+}
+function focusConstruction(point: { x: number; y: number; z: number }, face: number, station?: string) {
+  guide.close();
+  floorView.value = 'closed';
+  applyFloor();
+  viewer?.focusMaquette(point, face, station);
+  for (const id of ['iso', 'top']) element(id).setAttribute('aria-pressed', 'false');
+}
+for (const control of [floorView, floorEthernet, floorPower, floorSide]) control.addEventListener('change', applyFloor);
+floorRegisterControl.addEventListener('click', () => {
+  hatchOpen = !hatchOpen;
+  guide.reflectRegister(hatchOpen);
+  applyRegister();
+});
+element('focus-panel').addEventListener('click', () => {
+  focusConstruction({ ...panel, y: panel.y + panel.h / 2 }, 1);
+  selectMaterial('panel', panel.id);
+});
 const fabrication = fabricationUI(maquette);
 const guide = constructionGuide(maquette, network,
-  (phase, open) => viewer?.setConstructionPhase(phase, open),
+  (phase, open) => {
+    currentPhase = phase;
+    hatchOpen = open;
+    applyRegister();
+  },
   (kind, id) => {
     guide.close();
     selectMaterial(kind, id);
@@ -193,6 +239,10 @@ function showMaterial() {
   const fields = document.createElement('dl');
   const projected = item.kind === 'cable' || item.kind === 'duct';
   const totals = maquette.totals(item.kind).map(m => `${m.name}: ${measure(m.net, m.unit)}`).join(' · ');
+  const cuts = maquette.cuts.filter(cut => cut.kind === item.kind && cut.item === item.id);
+  const partList = item.detail ? [...new Set(cuts.map(cut =>
+    `${cut.name} (${measure(cut.width, 'mm')}${cut.height === undefined ? '' : ` × ${measure(cut.height, 'mm')}`})`
+  ))].join(' · ') : '';
   const componentDims = item.kind === 'computer'
     ? maquette.items.filter(part => part.id === item.id && computerParts.includes(part.kind))
     : [item];
@@ -207,6 +257,8 @@ function showMaterial() {
     [projected ? 'Maqueta 1:25 · trazado visible' : 'Maqueta 1:25', formatParts(true)],
     ['Cantidad del conjunto', String(maquette.counts[item.kind])], ['Herramientas', family.tools],
     ['Fabricación', family.steps], ['Piezas', family.pattern], ['Material neto del conjunto', totals],
+    ...(item.detail ? [['Función y relación', item.detail]] : []),
+    ...(partList ? [['Despiece del elemento', partList]] : []),
   ]) {
     const dt = document.createElement('dt');
     const dd = document.createElement('dd');
@@ -217,18 +269,54 @@ function showMaterial() {
   card.replaceChildren(title, fields);
   const actions = document.createElement('div');
   actions.className = 'network-actions';
-  const guide = document.createElement('button');
-  guide.type = 'button';
-  guide.textContent = 'Descargar guía';
-  guide.addEventListener('click', () => fabrication.guide(item));
-  if (printableFamilies.includes(item.kind)) {
+  const downloadGuide = document.createElement('button');
+  downloadGuide.type = 'button';
+  downloadGuide.textContent = 'Descargar guía';
+  downloadGuide.addEventListener('click', () => fabrication.guide(item));
+  if (printableFamilies.includes(item.kind) || climatePrintableFamilies.includes(item.kind)) {
     const template = document.createElement('button');
     template.type = 'button';
     template.textContent = 'Generar plantilla';
     template.addEventListener('click', () => fabrication.template(item));
     actions.append(template);
   }
-  actions.append(guide);
+  actions.append(downloadGuide);
+  const service = infrastructure.services.find(row => row.labels.box === item.id || row.labels.power === item.id ||
+    row.labels.jack === item.id || row.id === item.id);
+  if (service || item.kind === 'panel') {
+    const focus = document.createElement('button');
+    focus.type = 'button';
+    focus.textContent = item.kind === 'panel' ? 'Acercar tablero' : 'Acercar conexiones del puesto';
+    focus.addEventListener('click', () => {
+      if (service) {
+        focusConstruction({ ...service.plate, y: service.plate.y + 0.07 }, service.face, service.id);
+        selectMaterial('serviceBox', service.labels.box);
+      } else focusConstruction({ ...panel, y: panel.y + panel.h / 2 }, 1);
+    });
+    actions.append(focus);
+  }
+  if (item.kind === 'minisplit' || item.kind === 'condenser') {
+    const kind = item.kind;
+    const key = item.id.split('-')[1];
+    const perUnit = document.createElement('p');
+    perUnit.className = 'muted';
+    perUnit.textContent = 'Material neto de esta unidad · ' +
+      maquette.totals(kind, false, item.id).map(row => `${row.name}: ${measure(row.net, row.unit)}`).join(' · ');
+    card.append(perUnit);
+    for (const [mode, label] of [[kind, 'Acercar equipo'], ['pair', 'Ver par y tuberías']] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        guide.close();
+        floorView.value = 'closed';
+        applyFloor();
+        viewer?.focusClimate(key, mode);
+        for (const id of ['iso', 'top']) element(id).setAttribute('aria-pressed', 'false');
+      });
+      actions.append(button);
+    }
+  }
   if (computerParts.includes(item.kind)) {
     const computer = document.createElement('button');
     computer.type = 'button';
@@ -262,7 +350,9 @@ function showMaterialsInventory() {
   counts.textContent = `${maquette.counts.monitor} monitores · ${maquette.counts.desk} escritorios cliente · ${maquette.counts.counter} mostrador · ` +
     `${maquette.counts.chair} sillas · ${maquette.counts.tower} gabinetes · ${maquette.counts.mouse} mouse · ${totals.find(m => m.id === 'cardstock')!.pieces} recortes de cartulina · ` +
     `${maquette.counts.duct} tiras de canaleta (${measure(channel.linearNet!, 'm')}). Cartón pluma: ${measure(foam.base - foam.net, 'cm²')} de vanos ` +
-    `se añaden al neto para cortar paños completos. El 15 % se aplica sobre ${measure(foam.base, 'cm²')}.`;
+    `se añaden al neto para cortar paños completos. El 15 % se aplica sobre ${measure(foam.base, 'cm²')}. ` +
+    `${maquette.counts.serviceBox} cajas · ${maquette.counts.jack} RJ45 · ${maquette.counts.socket} tomas decorativas (incluye UPS) · ` +
+    `${maquette.counts.powerDuct} tiras eléctricas · ${totals.find(m => m.id === 'labels')!.pieces} recortes para placas, símbolos y circuitos.`;
   element('material-totals').replaceChildren(table, counts);
 }
 
@@ -276,6 +366,8 @@ function setMode(enabled: boolean) {
     previousChair = chair.value;
     layout.value = defaultLayout;
     chair.value = 'occupied';
+    floorView.value = 'closed';
+    hatchOpen = false;
     element('iso').click();
   } else {
     layout.value = previousLayout;
@@ -288,6 +380,7 @@ function setMode(enabled: boolean) {
   tourStart.hidden = enabled;
   for (const [index, button] of modes.entries()) button.setAttribute('aria-pressed', String(index === +enabled));
   viewer?.setMaquette(enabled, selectMaterial);
+  if (enabled) { applyFloor(); applyRegister(); }
   viewer?.layers(!enabled && dimensions.checked, !enabled && circulation.checked);
   showMaterial();
   updateModel();
@@ -519,6 +612,10 @@ for (const view of ['iso', 'top'] as const) {
   element(view).addEventListener('click', () => {
     rackView = false;
     element('rack-view').setAttribute('aria-pressed', 'false');
+    if (isMaquette && floorView.value === 'bottom') {
+      floorView.value = 'hidden';
+      applyFloor();
+    }
     viewer?.setView(view);
     element('iso').setAttribute('aria-pressed', String(view === 'iso'));
     element('top').setAttribute('aria-pressed', String(view === 'top'));

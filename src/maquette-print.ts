@@ -1,3 +1,4 @@
+import { climateFit } from './climate.ts';
 import { batchHeader, batchMaterials, calibrationMM, layoutBatch, layoutTemplate, printMargin, printableFormats } from './cut-layout.ts';
 import type { PrintFormat } from './cut-layout.ts';
 import { families, glueTab } from './maquette.ts';
@@ -31,7 +32,30 @@ function outline(svg: SVGElement | SVGGElement, cut: Cut, x: number, y: number) 
   for (const offset of cut.folds ?? []) line(x, y + offset, x + w, y + offset);
 }
 
-export function renderTemplate(target: HTMLElement, cuts: Cut[], label: string, format: PrintFormat) {
+function frontArtwork(svg: SVGElement, cut: Cut, x: number, y: number) {
+  if (!cut.artwork || !cut.height) return;
+  const { width: w, height: h } = cut;
+  if (cut.artwork === 'air-outlet') {
+    svg.append(svgElement('rect', { x: x + w * 0.07, y: y + h * 0.69,
+      width: w * climateFit.outletWidth, height: h * climateFit.outletHeight, fill: '#737f84' }));
+    svg.append(svgElement('path', { d: `M${x + w * 0.105} ${y + h * 0.81}h${w * 0.79}`,
+      stroke: '#252e34', 'stroke-width': 0.42 }));
+    return;
+  }
+  const cx = x + w * (0.5 + climateFit.fanCenterX);
+  const cy = y + h / 2;
+  const r = h * climateFit.fanRadius;
+  svg.append(svgElement('circle', { cx, cy, r, fill: '#252e34' }));
+  for (let i = 0; i < climateFit.blades; i++) {
+    svg.append(svgElement('ellipse', { cx: cx + r * 0.18, cy: cy - r * 0.46, rx: r * 0.15, ry: r * 0.31,
+      fill: '#a0adb1', transform: `rotate(${i * 360 / climateFit.blades} ${cx} ${cy})` }));
+  }
+  svg.append(svgElement('circle', { cx, cy, r: r * 0.22, fill: '#b6bcbf' }));
+  for (const ratio of [0.63, 0.93]) svg.append(svgElement('circle', { cx, cy, r: r * ratio,
+    fill: 'none', stroke: '#849497', 'stroke-width': 0.18 }));
+}
+
+export function renderTemplate(target: HTMLElement, cuts: Cut[], label: string, format: PrintFormat, detail?: string) {
   const paper = printableFormats[format];
   const result = layoutTemplate(cuts, format);
   target.replaceChildren();
@@ -66,6 +90,7 @@ export function renderTemplate(target: HTMLElement, cuts: Cut[], label: string, 
     for (const { x, y, piece } of pieces) {
       const cut = piece.cut;
       const row = y + 34;
+      frontArtwork(svg, cut, x, row + 8);
       outline(svg, cut, x, row + 8);
       const part = kinds.length === 1 ? cut.name : `${shortNames[cut.kind]} · ${cut.name}`;
       text(x, row + 2, part, 'part-label');
@@ -73,6 +98,7 @@ export function renderTemplate(target: HTMLElement, cuts: Cut[], label: string, 
         ? `${number(cut.width - 2 * glueTab)} × ${number(cut.height! - 2 * glueTab)} + pestañas de ${glueTab}`
         : cut.height ? `${number(cut.width)} × ${number(cut.height)}` : `${number(cut.width)} de largo`, 'part-label');
     }
+    if (detail) text(1, height - 18, detail, 'part-label');
     text(1, height - 47, 'Armado', 'template-title');
     const instructions: Record<string, string> = {
       monitor: cuts.some(c => c.name === 'Soporte ancho')
@@ -84,10 +110,19 @@ export function renderTemplate(target: HTMLElement, cuts: Cut[], label: string, 
       mouse: 'Marca los botones del mouse plano.',
       tower: 'Dobla pestañas de frente y reverso. Une laterales, tapa y fondo.',
       desk: 'Transfiere las cuatro longitudes a madera. Pega las patas bajo el tablero.',
+      minisplit: 'Dobla la banda y pega la pestaña final. Cierra las tapas y pega el frente con ranura.',
+      condenser: 'Arma la caja y pega el frente. Dobla las dos ménsulas de cartón de 1 mm a 90°.',
       chair: 'Usa EVA para el asiento y cartulina para respaldo y soporte. Dobla los extremos del soporte.',
     };
     kinds.filter(kind => kind !== 'mouse' || !kinds.includes('keyboard'))
-      .forEach((kind, i) => text(1, height - 40 + i * 6, instructions[kind] ?? families[kind].steps));
+      .forEach((kind, i) => text(1, height - (detail ? 35 : 40) + i * 6, instructions[kind] ?? families[kind].steps));
+    if (kinds[0] === 'condenser') {
+      const bracket = cuts.find(cut => cut.name === 'Ménsula 1')!;
+      const wall = bracket.folds![0];
+      text(1, height - 29, `Por ménsula: pega la placa de ${number(wall)} mm al muro y el brazo de ${number(bracket.height! - wall)} mm bajo la caja.`);
+      text(1, height - 23, 'Alinea los dos brazos a la misma altura. Usa las tiras de tubería como guías de longitud del cordón.');
+    }
+    if (kinds[0] === 'minisplit') text(1, height - 28, 'Monta la unidad contra el muro con la franja gris orientada hacia abajo.');
     text(1, height - 4, kinds.length > 1
       ? 'Cartulina · monitor, gabinete, teclado y respaldo. Cartón · tablero y base. Papel · pantalla. EVA · asiento.'
       : families[kinds[0]].material);

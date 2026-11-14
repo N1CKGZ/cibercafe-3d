@@ -96,6 +96,26 @@
         <section id="maquette-panel" hidden aria-labelledby="maquette-title">
           <h2 id="maquette-title">Maqueta y materiales</h2>
           <p class="muted">A2 · escala 1:25 · local de 40 × 40 cm · base de 50 × 50 cm.</p>
+          <fieldset class="floor-controls">
+            <legend>Piso técnico · MQ-04</legend>
+            <label for="floor-view">Vista del piso</label>
+            <select id="floor-view">
+              <option value="closed">Piso cerrado</option>
+              <option value="hidden">Mostrar infraestructura oculta</option>
+              <option value="bottom">Vista inferior</option>
+            </select>
+            <div class="toggles">
+              <label><input id="floor-ethernet" type="checkbox" checked> Ethernet</label>
+              <label><input id="floor-power" type="checkbox" checked> Electricidad</label>
+              <label><input id="floor-side" type="checkbox"> Retirar tapa lateral</label>
+            </div>
+            <div class="network-actions">
+              <button id="floor-register" type="button" aria-pressed="false">Abrir registro superior</button>
+              <button id="focus-panel" type="button">Ver tablero TE-01</button>
+            </div>
+            <p class="muted">Azul: Ethernet · Celeste: ducto de datos · Negro: electricidad · Naranja: ducto eléctrico · Gris claro: conexiones cortas.</p>
+            <p class="muted">Instalación decorativa sin corriente. Cámara de 12 mm y cruces a distinta altura, pendientes de prueba física.</p>
+          </fieldset>
           <button id="construction-toggle" type="button" aria-expanded="false" aria-controls="construction-guide">Guía de construcción</button>
           <div id="construction-guide" hidden></div>
           <div id="maquette-catalog">

@@ -1,4 +1,4 @@
-import { buildMaquette, computerParts, families, productionCuts, wasteMargin } from './maquette.ts';
+import { buildMaquette, computerParts, families, isThread, productionCuts, wasteMargin } from './maquette.ts';
 import type { Cut, Item } from './maquette.ts';
 import { cutGap, defaultStock, planPurchase, printableFamilies, printableFormats, sheetMargin, stationBatch } from './cut-layout.ts';
 import type { PrintFormat } from './cut-layout.ts';
@@ -31,6 +31,7 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
   let activeCuts: Cut[] = [];
   let activeLabel = '';
   let batch = false;
+  let templateDetail: string | undefined;
   const purchaseRows = catalog.totals().map(row => ({
     ...row, cuts: catalog.cuts.filter(cut => cut.material === row.id),
     stock: { ...defaultStock[row.id] }, price: null as number | null, valid: true,
@@ -68,7 +69,7 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
     const width = numeric(row.stock.height === undefined ? 'Largo de unidad (mm)' : 'Ancho de hoja (mm)', row.stock.width, 1, 1000000, 'any');
     const height = row.stock.height === undefined ? null : numeric('Alto de hoja (mm)', row.stock.height, 1, 1000000, 'any');
     const unit = document.createElement('span');
-    unit.textContent = height ? ' mm por hoja' : row.id === 'thread' ? ' mm por rollo' : ' mm por palito';
+    unit.textContent = height ? ' mm por hoja' : isThread(row.id) ? ' mm por rollo' : ' mm por palito';
     stock.append(width);
     if (height) stock.append(' × ', height);
     stock.append(unit);
@@ -95,7 +96,7 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
           suggested.append(problem);
         }
       } else {
-        suggested.textContent = `${quantity} ${height ? 'hojas' : row.id === 'thread' ? 'rollos' : 'palitos'}`;
+        suggested.textContent = `${quantity} ${height ? 'hojas' : isThread(row.id) ? 'rollos' : 'palitos'}`;
         const detail = document.createElement('small');
         detail.textContent = height
           ? `${result.minimum} hojas para las piezas. Piezas por hoja: ${result.perSheet.join(', ')}.`
@@ -129,7 +130,7 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
         const { quantity, net, gross, amount } = pricing(row);
         const presentation = row.valid ? row.stock.height === undefined ? row.stock.width : `${row.stock.width} × ${row.stock.height}` : '';
         return [row.name, net.toFixed(4), row.unit, gross.toFixed(4), presentation, quantity,
-          row.stock.height !== undefined ? 'hoja' : row.id === 'thread' ? 'rollo' : 'palito', row.price, amount?.toFixed(2) ?? null];
+          row.stock.height !== undefined ? 'hoja' : isThread(row.id) ? 'rollo' : 'palito', row.price, amount?.toFixed(2) ?? null];
       })];
     download('lista-compra-maqueta.csv', 'text/csv;charset=utf-8', '\uFEFF' + records.map(row => row.map(csvCell).join(',')).join('\r\n'));
   });
@@ -155,7 +156,7 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
     printStyle.textContent = `@page { size: ${width}mm ${height}mm; margin: 10mm; }`;
     const simplified = support.value === 'simple';
     if (!batch) {
-      print.disabled = !renderTemplate(preview, productionCuts(activeCuts, simplified), activeLabel, selected);
+      print.disabled = !renderTemplate(preview, productionCuts(activeCuts, simplified), activeLabel, selected, templateDetail);
       return;
     }
     const admin = scope.value === 'admin';
@@ -188,9 +189,10 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
     print.disabled = !stats.length;
   }
 
-  function openTemplate(label: string, cuts: Cut[], production = false) {
+  function openTemplate(label: string, cuts: Cut[], production = false, detail?: string) {
     activeCuts = cuts;
     activeLabel = label;
+    templateDetail = detail;
     batch = production;
     summary.hidden = !batch;
     document.getElementById('production-group')!.hidden = !batch;
@@ -206,6 +208,7 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
     const parts = cuts.map(c => `- ${c.name} · ${qty(c.width, 'mm')}${c.height === undefined ? '' : ` × ${qty(c.height, 'mm')}`}${c.tabs ? ' con pestañas' : ''}`);
     download(`guia-${item.kind}-${item.id}.txt`, 'text/plain;charset=utf-8',
       [`${family.name} · ${item.id} · 1:25`, '', family.material, family.tools, family.steps, family.pattern,
+        ...(item.detail ? [item.detail] : []),
         ...(cuts.some(c => c.name === 'Soporte ancho') ? ['Soporte didáctico de 5.2 × 5.4 mm. Sustituye al original de 2.2 × 5.4 mm.'] : []),
         '', ...parts].join('\n'));
   }
@@ -213,6 +216,6 @@ export function fabricationUI(catalog: ReturnType<typeof buildMaquette>) {
   return {
     guide,
     template: (item: Item) => openTemplate(`${families[item.kind].name} · ${item.id}`,
-      catalog.cuts.filter(c => c.kind === item.kind && c.item === item.id)),
+      catalog.cuts.filter(c => c.kind === item.kind && c.item === item.id), false, item.detail),
   };
 }

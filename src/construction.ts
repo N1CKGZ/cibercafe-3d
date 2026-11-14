@@ -13,12 +13,14 @@ export const phases = [
     care: 'Usa las huellas del visor como referencias. Marca con lápiz antes de cortar.',
   },
   {
-    id: 'floor', title: 'Piso y canalizaciones Cat6',
-    goal: 'Representar los 26 recorridos y dejar un registro accesible.',
-    materials: ['board', 'channel', 'thread'], kinds: ['cable', 'duct'], tools: 'Regla, cúter, base de corte, tijeras y cinta de papel.',
-    steps: ['Marca el registro antes de pegar el piso. Guarda el recorte para la tapa.', 'Prueba en seco las tiras y el hilo. Identifica C-01 a C-26 en ambos extremos.', 'Apoya la tapa en pestañas por debajo. Usa una muesca lateral para levantarla.'],
+    id: 'floor', title: 'Piso técnico y canalizaciones',
+    goal: 'Montar una cámara accesible de 12 mm para las rutas de datos y energía decorativa.',
+    materials: ['board', 'channel', 'thread', 'powerChannel', 'powerThread', 'labels', 'acetate'], kinds: ['cable', 'duct', 'powerDuct', 'powerWire', 'chamber', 'access', 'inspection'], tools: 'Regla, cúter, base de corte, tijeras y cinta de papel.',
+    steps: ['Marca el registro antes de pegar el piso. Guarda el recorte para la tapa.', 'Prueba en seco las tiras y el hilo. Identifica C-01 a C-26 en ambos extremos.', 'Apoya la tapa en pestañas por debajo. Usa una muesca lateral para levantarla.',
+      'Forma el marco y los seis apoyos. Presenta la tapa lateral de 220 × 12 mm con guías y lengüeta, y fija el acetato de 100 × 12 mm en la abertura frontal.',
+      'Traza el Cat6 y los siete circuitos decorativos. Presenta la canalización naranja a un nivel inferior al azul en los cruces. Comprueba la tapa lateral con el piso montado.'],
     check: 'La tapa debe quedar al ras y salir sin mover mesas. Comprueba el espacio para el hilo y el apoyo de las pestañas.',
-    care: 'Mide el grueso real del conjunto de tiras, hilos y apoyos antes de elegir separadores. Presenta los 26 recorridos antes de pegarlos.',
+    care: 'La maqueta usa hilo sin corriente. Mide el grueso real del conjunto de tiras, hilos y apoyos antes de elegir separadores. Presenta los 26 recorridos antes de pegarlos.',
   },
   {
     id: 'walls', title: 'Muros, ventanas y puertas',
@@ -35,14 +37,15 @@ export const phases = [
     tools: 'Regla milimétrica, tijeras, cúter, pinzas y pegamento blanco.',
     steps: ['Imprime PC-01 al 100 % y mide la barra de 100 mm. Prueba el mouse y el soporte original o ancho.', 'Ensambla tablero, patas, silla, monitor, teclado, mouse y gabinete. Presenta el conjunto en seco sobre A2.', 'Tras probar PC-01, imprime los lotes de clientes y ADM-01. Para recepción usa el tablero del mostrador.'],
     check: 'Verifica estabilidad, ajuste de periféricos y holgura de las sillas. Confirma que el registro pueda abrirse con los muebles colocados.',
-    care: 'El soporte ancho es una simplificación didáctica opcional. La validación física de PC-01 está pendiente de que la registres.',
+    care: 'Monta bajo cada tablero su placa de servicio con toma, RJ45 y rótulo. Fija los cordones al borde posterior en una prueba en seco. El soporte ancho es una simplificación didáctica opcional. La validación física de PC-01 está pendiente de que la registres.',
   },
   {
     id: 'equipment', title: 'Cuarto técnico y climatización',
     goal: 'Montar las piezas del cuarto técnico y la climatización prevista.',
-    materials: ['board', 'thinboard', 'cardstock'], kinds: ['rack', 'server', 'minisplit', 'condenser'],
+    materials: ['board', 'thinboard', 'cardstock', 'paper', 'hvacCord'], kinds: ['rack', 'server', 'minisplit', 'condenser', 'panel', 'ups'],
     tools: 'Regla, tijeras, escuadra, cúter y pegamento blanco.',
-    steps: ['Forma el rack con sus caras y marca las bandas del panel, switch, router y ONT. Presenta el servidor en su repisa.', 'Dobla y cierra las cajas de minisplits y condensadoras. Marca rejillas y ventiladores.', 'Presenta en seco las condensadoras y sus soportes sobre las caras exteriores indicadas.'],
+    steps: ['Forma el rack con sus caras y marca las bandas del panel, switch, router y ONT. Presenta el servidor en su repisa.', 'Imprime las plantillas HVAC y CX al 100 %. Dobla las bandas, pega las tapas y aplica los frentes impresos.', 'Dobla dos ménsulas por condensadora. Pega al muro las placas verticales y nivela los brazos antes de apoyar la caja. Fija los minisplits a la cara interior. Traza dos cordones por par, dejando los vanos libres.',
+      'Arma TE-01 y UPS-01 en cartón. Marca CE-08 como alumbrado previsto. Identifica CE-07 y la toma dedicada del UPS. Comprueba que el tablero y la maqueta de UPS dejen libre la puerta técnica.'],
     check: 'Comprueba que rack y servidor sean distinguibles, que la puerta gire y que los soportes exteriores queden dentro de la base.',
     care: 'Las medidas de climatización son orientativas. Verifica el grosor y la estabilidad de los soportes antes de pegarlos.',
   },
@@ -64,6 +67,7 @@ export const buildGroups = [
   ['base', 'Base y piso'], ['ducts', 'Registro, tiras y tendido de hilo'],
   ['walls', 'Muros, ventanas y puertas'], ['clients', '25 estaciones cliente'],
   ['admin', 'Mostrador y estación ADM-01'], ['equipment', 'Rack, servidor y climatización'],
+  ['chamber', 'Cámara técnica y accesos MQ-04'], ['services', 'Placas y conexiones MQ-04'],
 ] as const;
 
 export function floorRegister(network: Network) {

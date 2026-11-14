@@ -1,3 +1,4 @@
+import { chamberParts, floorLayers } from './infrastructure.ts';
 import { buildGroups, floorRegister, materialStates, phases, progressKey, readProgress, summarizePhase } from './construction.ts';
 import type { MaterialState, PhaseId } from './construction.ts';
 import { displayBase, families, productionCuts, scale, toMM } from './maquette.ts';
@@ -25,6 +26,7 @@ export function constructionGuide(catalog: ReturnType<typeof buildMaquette>, net
   const totals = catalog.totals();
   const materialIds = totals.map(row => row.id);
   const register = floorRegister(network);
+  const chamber = chamberParts();
   let saved: string | null = null;
   try { saved = localStorage.getItem(progressKey); } catch { /* Storage can be disabled. */ }
   let progress = readProgress(saved, materialIds);
@@ -122,8 +124,9 @@ export function constructionGuide(catalog: ReturnType<typeof buildMaquette>, net
       case 'floor': return [
         `Piso ${dimensions(toMM(room.w), toMM(room.d))}. Espesor del modelo ${dimensions(register.floorMm)}.`,
         `Registro propuesto ${dimensions(toMM(register.w), toMM(register.d))}. Centro desde la esquina posterior izquierda ${dimensions(toMM(register.x), toMM(register.z))}.`,
-        `Profundidad hasta el borde inferior del ducto ${dimensions(register.ductDepthMm)} bajo el piso terminado. Con el espesor del modelo queda una cámara mínima de ${dimensions(register.minimumGapMm)}, más la holgura que exija el material probado.`,
-        `Con la base de ${dimensions(register.baseMm)}, el piso terminado quedaría a ${dimensions(register.baseMm + register.ductDepthMm)} sobre la mesa como referencia mínima. Mide los muros y el mobiliario desde ese piso.`,
+        `Cámara libre de ${dimensions(toMM(floorLayers.gap))}. Con la base y el piso, la superficie queda a ${dimensions(register.baseMm + register.floorMm + toMM(floorLayers.gap))} sobre la mesa.`,
+        `Tapa lateral ${dimensions(toMM(chamber.cover.d), toMM(floorLayers.gap))}. Ventana ${dimensions(toMM(chamber.window.w), toMM(floorLayers.gap))}.`,
+        `Ejes de Cat6 y electricidad a ${dimensions(-toMM(floorLayers.dataY))} y ${dimensions(-toMM(floorLayers.powerY))} bajo el piso terminado, respectivamente. Prueba el espesor real en el cruce.`,
       ];
       case 'walls': return catalog.items.filter(item => ['wall', 'window', 'door'].includes(item.kind))
         .map(item => `${families[item.kind].name} ${item.id} · ${dimensions(...item.dims.map(toMM))}.`);
@@ -134,7 +137,7 @@ export function constructionGuide(catalog: ReturnType<typeof buildMaquette>, net
           .map(item => `${catalog.counts[item.kind]} × ${families[item.kind].name} · ${dimensions(...item.dims.map(toMM))}.`),
       ];
       case 'equipment': return catalog.items.filter(item => ['rack', 'server', 'minisplit', 'condenser'].includes(item.kind))
-        .map(item => `${item.id} · ${dimensions(...item.dims.map(toMM))} (ancho, alto, fondo).`);
+        .map(item => `${item.id} · ${dimensions(...item.dims.map(toMM))} (ancho, alto, fondo).${item.kind === 'minisplit' || item.kind === 'condenser' ? ' ' + item.detail : ''}`);
       case 'finish': return [`Local ${dimensions(toMM(room.w), toMM(room.d))}. Escala 1:${scale}. Calibración ${dimensions(calibrationMM)}.`,
         `Paso de ensayo a escala ${dimensions(toMM(study.width))}. ${network.links.length} enlaces representados.`];
     }
@@ -245,5 +248,11 @@ export function constructionGuide(catalog: ReturnType<typeof buildMaquette>, net
 
   toggle.addEventListener('click', () => setOpen(!open));
   document.getElementById('monitor-support')?.addEventListener('change', () => { if (open) render(); });
-  return { close: () => { if (open) setOpen(false); } };
+  return {
+    close: () => { if (open) setOpen(false); },
+    reflectRegister(enabled: boolean) {
+      hatchOpen = enabled;
+      if (open && phases[index].id === 'floor') render();
+    },
+  };
 }

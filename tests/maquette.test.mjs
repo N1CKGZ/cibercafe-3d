@@ -33,9 +33,9 @@ test('los hilos se calculan por enlace sin reserva de obra y las tiras se cuenta
   assert.equal(items('cable').length, network.links.length);
   assert.equal(items('duct').length, new Set(network.ducts.map(duct => duct.id)).size);
   const materials = Object.fromEntries(catalog.totals().map(row => [row.id, row]));
-  near(materials.thread.net, items('cable').reduce((m, item) => m + item.scaled[0] / 1000, 0));
+  near(materials.thread.net, [...items('cable'), ...items('dataLead'), ...items('rackPatch')].reduce((m, item) => m + (item.scaled?.[0] ?? toMM(item.dims[0])) / 1000, 0));
   near(materials.channel.linearNet, items('duct').reduce((m, item) => m + item.scaled[0] / 1000, 0));
-  assert.ok(materials.thread.net < network.links.reduce((m, link) => m + link.total / 25, 0));
+  assert.ok(items('cable').reduce((m, item) => m + item.scaled[0] / 1000, 0) < network.links.reduce((m, link) => m + link.total / 25, 0));
   near(materials.wood.net, 2.8912);
   assert.equal(materials.cardstock.pieces, 343);
   near(materials.acetate.gross, materials.acetate.net * 1.15);

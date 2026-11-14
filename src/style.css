@@ -305,3 +305,10 @@ details p { margin-top: 5px; }
 #construction-guide details > div > label { display: block; margin-top: 4px; }
 #construction-guide .guide-task { display: flex; align-items: flex-start; gap: 6px; margin: 5px 0; }
 #construction-guide .guide-task input { margin: 3px 0 0; accent-color: var(--accent); }
+
+.floor-controls { margin: 0 0 12px; padding: 10px; border: 1px solid #b8c8d6; border-radius: 6px; }
+.floor-controls legend { font-weight: 700; }
+.floor-controls > label { display: block; font-size: .83rem; margin-bottom: 4px; }
+.floor-controls > select { max-width: 100%; }
+.floor-controls .toggles { margin-top: 8px; }
+.floor-controls p:last-child { margin-bottom: 0; }

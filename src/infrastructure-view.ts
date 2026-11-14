@@ -1,3 +1,4 @@
+import { segmentKey } from './inspection.ts';
 import * as T from 'three';
 import { buildInfrastructure, chamberParts, circuitLabels, floorLayers, panel, powerDuctSize, rackOutlet, serviceBoxSize, ups, wireClearance, wireGauge } from './infrastructure.ts';
 import { sectionSize } from './network.ts';
@@ -54,6 +55,8 @@ export function infrastructureView(model: Model, network: Network, box: Box, tag
   const shifted = (p: NetworkPoint, dy: number) => ({ ...p, y: p.y + dy });
   const infra = buildInfrastructure(model, network);
   function run(from: NetworkPoint, to: NetworkPoint, width: number, depth: number, power: boolean, id: string, wireId: string) {
+    const groups = [underData, underPower, visibleData, visiblePower, rackPower];
+    const before = groups.map(group => group.children.length);
     const ductColor = power ? powerDuctColor : dataDuctColor;
     const wireColor = power ? powerColor : dataColor;
     const ductKind = power ? 'powerDuct' : 'duct';
@@ -67,17 +70,23 @@ export function infrastructureView(model: Model, network: Network, box: Box, tag
     else if (Math.max(from.y, to.y) > 0) {
       const top = from.y > to.y ? from : to;
       const low = from.y > to.y ? to : from;
-      bar(aboveGroup, { ...low, y: Math.max(low.y, 0) }, top, width, depth, ductColor, ductKind, id);
+      bar(aboveGroup, low, top, width, depth, ductColor, ductKind, id);
+      bar(aboveGroup, low, top, wireGauge, wireGauge, wireColor, wireKind, wireId);
     }
     if (covered) {
       for (const sign of [-1, 1]) {
         bar(hidden, shifted(from, sign * (depth / 2 + wireClearance)), shifted(to, sign * (depth / 2 + wireClearance)),
           wireGauge, wireGauge, wireColor, wireKind, wireId);
       }
-    } else if (Math.min(from.y, to.y) < floorBottom) {
-      const low = from.y < to.y ? from : to;
-      const tip = { ...low, y: floorBottom };
-      bar(hidden, low, tip, width, depth, ductColor, ductKind, id);
+    }
+    for (const [i, group] of groups.entries()) {
+      for (const mesh of group.children.slice(before[i])) {
+        Object.assign(mesh.userData, {
+          inspectionLayer: mesh.userData.materialKind === ductKind
+            ? power ? 'powerDuct' : 'dataDuct' : power ? 'electricity' : 'ethernet',
+          ...(power ? { powerSegment: segmentKey(from, to) } : { dataSegment: id }),
+        });
+      }
     }
   }
   for (const duct of network.ducts) {
@@ -123,10 +132,11 @@ export function infrastructureView(model: Model, network: Network, box: Box, tag
     const { plate, bracket, outlet, jack, labels, face, leads } = station;
     const y = plate.y - serviceBoxSize.h / 2;
     const blockStart = [services, visibleData, visiblePower, peripherals].map(group => group.children.length);
-    tag(box(underData, { ...station.link.outletPoint, w: 0.105, d: 0.105 },
+    const dataMarker = tag(box(underData, { ...station.link.outletPoint, w: 0.105, d: 0.105 },
       floorLayers.dataY - 0.04, 0.075, dataColor), 'jack', labels.jack, dataColor);
-    tag(box(underPower, { ...outlet, z: plate.z, w: 0.105, d: 0.105 },
+    const powerMarker = tag(box(underPower, { ...outlet, z: plate.z, w: 0.105, d: 0.105 },
       floorLayers.powerY - 0.04, 0.075, powerDuctColor), 'socket', labels.power, powerDuctColor);
+    dataMarker.userData.station = powerMarker.userData.station = station.id;
     tag(box(services, { ...serviceBoxSize, ...plate }, y, serviceBoxSize.h, 0xf2eee3), 'serviceBox', labels.box, 0xf2eee3);
     tag(box(services, bracket, bracket.y, bracket.h, 0xc4b394), 'serviceBox', labels.box, 0xc4b394);
     const jackFront = jack.z + face * 0.006;

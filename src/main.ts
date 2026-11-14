@@ -1,3 +1,4 @@
+import { inspectionUI } from './inspection-ui.ts';
 import { buildInfrastructure, panel } from './infrastructure.ts';
 import './style.css';
 import { inspect, maxX, meters, minX } from './geometry.ts';
@@ -207,7 +208,16 @@ const guide = constructionGuide(maquette, network,
     selectMaterial(kind, id);
   });
 const materialItem = element<HTMLSelectElement>('material-item');
-const modes = [element('mode-technical'), element('mode-maquette')];
+const modes = [element('mode-technical'), element('mode-maquette'), element('mode-infrastructure')];
+type ViewerMode = 'technical' | 'maquette' | 'infrastructure';
+let viewerMode: ViewerMode = 'technical';
+const infrastructureUI = inspectionUI(network, infrastructure,
+  options => { if (viewerMode === 'infrastructure') viewer?.setInfrastructure(options, infrastructureUI.select); },
+  view => {
+    viewer?.setView(view);
+    element('iso').setAttribute('aria-pressed', String(view === 'iso'));
+    element('top').setAttribute('aria-pressed', 'false');
+  });
 let isMaquette = false;
 let previousLayout = '';
 let previousChair = '';
@@ -356,39 +366,54 @@ function showMaterialsInventory() {
   element('material-totals').replaceChildren(table, counts);
 }
 
-function setMode(enabled: boolean) {
-  if (enabled === isMaquette) return;
+function setMode(next: ViewerMode) {
+  if (next === viewerMode) return;
+  const wasTechnical = viewerMode === 'technical';
+  const enabled = next !== 'technical';
   viewer?.exitTour();
-  if (!enabled) guide.close();
-  isMaquette = enabled;
-  if (enabled) {
+  viewer?.setInfrastructure(null);
+  guide.close();
+  if (wasTechnical) {
     previousLayout = layout.value;
     previousChair = chair.value;
+  }
+  viewerMode = next;
+  isMaquette = enabled;
+  if (enabled) {
     layout.value = defaultLayout;
     chair.value = 'occupied';
     floorView.value = 'closed';
     hatchOpen = false;
-    element('iso').click();
   } else {
     layout.value = previousLayout;
     chair.value = previousChair;
   }
-  document.body.classList.toggle('maquette-mode', enabled);
-  element('maquette-panel').hidden = !enabled;
-  const inspector = document.querySelector('.inspector')!;
-  inspector.setAttribute('aria-labelledby', enabled ? 'maquette-title' : 'inspector-title');
+  document.body.classList.toggle('maquette-mode', next === 'maquette');
+  document.body.classList.toggle('infrastructure-mode', next === 'infrastructure');
+  element('maquette-panel').hidden = next !== 'maquette';
+  element('infrastructure-panel').hidden = next !== 'infrastructure';
+  document.querySelector('.inspector')!.setAttribute('aria-labelledby',
+    next === 'maquette' ? 'maquette-title' : next === 'infrastructure' ? 'infrastructure-title' : 'inspector-title');
   tourStart.hidden = enabled;
-  for (const [index, button] of modes.entries()) button.setAttribute('aria-pressed', String(index === +enabled));
+  for (const [index, button] of modes.entries()) {
+    button.setAttribute('aria-pressed', String(index === ['technical', 'maquette', 'infrastructure'].indexOf(next)));
+  }
   viewer?.setMaquette(enabled, selectMaterial);
+  viewer?.setView('iso');
+  element('iso').setAttribute('aria-pressed', 'true');
+  element('top').setAttribute('aria-pressed', 'false');
   if (enabled) { applyFloor(); applyRegister(); }
   viewer?.layers(!enabled && dimensions.checked, !enabled && circulation.checked);
   showMaterial();
   updateModel();
-  if (enabled) document.querySelector('.view-hint')!.textContent = 'Selecciona una pieza para ver sus materiales.';
+  if (next === 'infrastructure') infrastructureUI.refresh();
+  if (enabled) document.querySelector('.view-hint')!.textContent = next === 'infrastructure'
+    ? 'Selecciona una computadora para seguir Ethernet y electricidad.' : 'Selecciona una pieza para ver sus materiales.';
 }
 
-modes[0].addEventListener('click', () => setMode(false));
-modes[1].addEventListener('click', () => setMode(true));
+modes[0].addEventListener('click', () => setMode('technical'));
+modes[1].addEventListener('click', () => setMode('maquette'));
+modes[2].addEventListener('click', () => setMode('infrastructure'));
 materialItem.addEventListener('change', showMaterial);
 showMaterialsInventory();
 function updateModel() {
@@ -621,7 +646,7 @@ for (const view of ['iso', 'top'] as const) {
     element('top').setAttribute('aria-pressed', String(view === 'top'));
     document.querySelector('.view-hint')!.textContent = view === 'iso'
       ? 'Arrastra para orbitar · Rueda para acercar'
-      : isMaquette ? 'Selecciona una pieza para ver sus materiales.' : 'Clic en un pasillo para medir · Rueda para acercar';
+      : viewerMode === 'infrastructure' ? 'Selecciona una computadora para seguir sus conexiones.' : isMaquette ? 'Selecciona una pieza para ver sus materiales.' : 'Clic en un pasillo para medir · Rueda para acercar';
     showNetwork();
   });
 }

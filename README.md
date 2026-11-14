@@ -38,7 +38,7 @@ npm ci
 # Servidor de desarrollo
 npm run dev
 
-# Pruebas automatizadas (34 pruebas)
+# Pruebas automatizadas (37 pruebas)
 npm test
 
 # Compilación para producción
@@ -207,3 +207,20 @@ CX-02 se centra a 3.70 m y CX-03 a 6.55 m del extremo posterior del muro izquier
 | Cordón fino flexible | 445.28 mm | 6 cortes, 512.07 mm con margen del 15 % |
 
 Las cajas sustituyen el despiece inicial de seis caras. La lista de compra usa las mismas hojas de cartón y papel de la maqueta y añade una presentación de cordón de 1 m. Para la primera prueba física, presenta un par en seco, comprueba la rigidez de las ménsulas, el pliegue de las pestañas con el cartón elegido y el diámetro del cordón antes de perforar el muro.
+
+## MQ-05 · Infraestructura oculta
+
+El tercer modo comparte la escena del visor. «Solo instalaciones» oculta piso, muros y base opaca y conserva equipos y mobiliario en sus posiciones. «Semitransparente» repone el contexto arquitectónico con opacidad reducida. «Vista inferior» reutiliza la cámara de MQ-04 y «Restaurar vista» restablece el encuadre isométrico, todas las estaciones y las capas iniciales.
+
+Selecciona PC-01 a PC-25 o ADM-01 en la escena o en el selector. El puesto, su caja y sus puertos adquieren contraste. Los tramos Cat6 del enlace seleccionado y el camino del circuito hasta su toma se resaltan, incluidos los tramos compartidos. Los otros recorridos quedan atenuados. La carcasa del rack se vuelve translúcida para seguir el tendido hacia el panel. Los puertos correspondientes de PP-01 y SW-01 se resaltan en amarillo. La ficha lateral mantiene los identificadores legibles.
+
+Las doce capas permiten controlar Ethernet, electricidad decorativa, ambas canalizaciones, cajas, símbolos de tomas, TE-01, equipos técnicos, computadoras, muebles, piso y muros. La leyenda usa azul para Ethernet, naranja para electricidad, azul grisáceo para ductos de datos y beige para ductos eléctricos. La selección y los controles cambian la representación de los objetos existentes. Los materiales y la visibilidad se restauran al volver a los modos anteriores.
+
+| Puesto | Cadena de datos | VLAN | Cat6 del proyecto, con reserva | Circuito decorativo | TE-01 a toma, maqueta | Cordón toma a gabinete, maqueta |
+| --- | --- | ---: | ---: | --- | ---: | ---: |
+| PC-01 | TR-01 → C-01 → PP-01/01 → SW-01/01 | 10 | 11.86 m | CE-01 | 372.92 mm | 24.65 mm |
+| ADM-01 | TR-26 → C-26 → PP-01/26 → SW-01/26 | 20 | 19.11 m | CE-06 | 774.92 mm | 16.49 mm |
+
+El camino eléctrico se obtiene sobre los segmentos ya definidos para el circuito asignado, desde TE-01 hasta la toma individual. La medida de la ficha cuenta ese camino una vez y muestra el cordón final por separado. La cantidad de hilo para fabricar todo el circuito continúa en la lista de materiales de MQ-04. Los metros Cat6 corresponden al anteproyecto académico. Las cifras en milímetros corresponden al modelo decorativo 1:25.
+
+La inspección usa ocultamiento y transparencia con las alturas canónicas. Los trazados siguen siendo esquemas de maqueta y las holguras constructivas requieren el prototipo físico.

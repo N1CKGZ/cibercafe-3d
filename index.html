@@ -25,6 +25,7 @@
           <div class="segmented modes" role="group" aria-label="Modo del visor">
             <button id="mode-technical" type="button" aria-pressed="true">Modelo técnico</button>
             <button id="mode-maquette" type="button" aria-pressed="false">Maqueta y materiales</button>
+            <button id="mode-infrastructure" type="button" aria-pressed="false">Infraestructura oculta</button>
           </div>
           <div class="segmented" role="group" aria-label="Cámara">
             <button id="iso" type="button" aria-pressed="true">Isométrica</button>
@@ -93,6 +94,28 @@
         </div>
       </section>
       <aside class="inspector" aria-labelledby="inspector-title">
+        <section id="infrastructure-panel" hidden aria-labelledby="infrastructure-title">
+          <h2 id="infrastructure-title">Infraestructura oculta</h2>
+          <p class="muted">A2 · 26 estaciones · instalaciones decorativas sin corriente.</p>
+          <label for="infrastructure-style">Representación</label>
+          <select id="infrastructure-style">
+            <option value="only">Solo instalaciones</option>
+            <option value="transparent">Semitransparente</option>
+          </select>
+          <label for="infrastructure-station">Computadora</label>
+          <select id="infrastructure-station"></select>
+          <div class="network-actions">
+            <button id="infrastructure-bottom" type="button">Vista inferior</button>
+            <button id="infrastructure-reset" type="button">Restaurar vista</button>
+          </div>
+          <details open>
+            <summary>Capas</summary>
+            <div id="infrastructure-layers" class="toggles"></div>
+          </details>
+          <p class="muted infrastructure-legend">Azul · Ethernet<br>Naranja · electricidad decorativa<br>Azul grisáceo · ductos de datos<br>Beige · ductos eléctricos<br>Blanco · cajas y tomas</p>
+          <div id="connection-card" aria-live="polite"></div>
+          <p class="muted">Los metros del Cat6 describen el proyecto académico. Las medidas en milímetros describen el hilo de la maqueta 1:25. Los trazados eléctricos son decorativos.</p>
+        </section>
         <section id="maquette-panel" hidden aria-labelledby="maquette-title">
           <h2 id="maquette-title">Maqueta y materiales</h2>
           <p class="muted">A2 · escala 1:25 · local de 40 × 40 cm · base de 50 × 50 cm.</p>

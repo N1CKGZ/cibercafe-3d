@@ -312,3 +312,16 @@ details p { margin-top: 5px; }
 .floor-controls > select { max-width: 100%; }
 .floor-controls .toggles { margin-top: 8px; }
 .floor-controls p:last-child { margin-bottom: 0; }
+
+#infrastructure-panel[hidden],
+.infrastructure-mode .inspector > :not(#infrastructure-panel),
+.infrastructure-mode .view-footer .legend { display: none; }
+.infrastructure-mode #infrastructure-panel { border-top: 0; padding: 0; }
+#infrastructure-panel > label { display: block; margin: 12px 0 5px; font-size: .83rem; font-weight: 600; }
+#infrastructure-panel details { margin-top: 14px; }
+#infrastructure-layers { display: grid; grid-template-columns: 1fr; gap: 7px; padding: 10px 0; }
+#connection-card h3 { margin-top: 16px; }
+#connection-card dl { margin: 10px 0; }
+#connection-card dt { color: var(--muted); font-size: .75rem; margin-top: 10px; }
+#connection-card dd { margin: 4px 0 0; font-size: .83rem; line-height: 1.5; overflow-wrap: anywhere; }
+.infrastructure-legend { border-left: 3px solid #7d9eaf; padding-left: 9px; line-height: 1.7; }

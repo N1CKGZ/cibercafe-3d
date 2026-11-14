@@ -1,3 +1,5 @@
+import { infrastructureInspection } from './inspection-view.ts';
+import type { InfrastructureOptions } from './inspection.ts';
 import { climateCamera, climateView } from './climate-view.ts';
 import * as T from 'three';
 import { displayBase, models, projectedY, scale } from './maquette.ts';
@@ -108,6 +110,8 @@ export function createViewer(
   let guideNetwork: Network | undefined;
   maquetteExtras.visible = false;
   let isMaquette = false;
+  let infrastructureOptions: InfrastructureOptions | null = null;
+  let onInfrastructureStation: ((id: string) => void) | undefined;
   let onMaterial: ((kind: ComponentKind, id: string) => void) | undefined;
   const technicalMaterials = new Map<T.Mesh, T.Material | T.Material[]>();
   const networkLayer = container.querySelector('#network-labels')!;
@@ -375,6 +379,11 @@ export function createViewer(
   tag(mac, 'server', server.id);
   rackMeshes.push(mac);
 
+  const infrastructureInspector = infrastructureInspection({
+    architecture, objects, infrastructure: infrastructureRoot, extras: maquetteExtras, network: networkGroup,
+    zones, annotations, guide: guideExtras, floor: slab, grid, base: displaySlab, rackMeshes, door: techDoorPivot,
+  });
+
   const overlayMaterials = new Map<string, T.MeshBasicMaterial>();
   function plane(group: T.Group, r: Rect, y: number, color: number, opacity: number) {
     const key = `${color}:${opacity}`;
@@ -572,6 +581,7 @@ export function createViewer(
   }
 
   function showZones(model: Model, inspection: Inspection, selected: Passage, destination: string) {
+    infrastructureInspector.restore();
     currentModel = model;
     activeObstacles = createObstacles(model, techDoorOpen);
     clear(zones);
@@ -678,6 +688,7 @@ export function createViewer(
   }
 
   function setView(next: CameraView) {
+    infrastructureInspector.restore();
     restoreGuideVisibility();
     if (isTour) {
       isTour = false;
@@ -725,6 +736,7 @@ export function createViewer(
   }
 
   function applyGuide() {
+    infrastructureInspector.restore();
     restoreGuideVisibility();
     clear(guideExtras);
     displaySlab.position.y = -room.slab - floorLayers.gap - displayBase.thickness * scale / 2;
@@ -807,6 +819,7 @@ export function createViewer(
         floor(maxX(hatch), room.w, minZ(hatch), maxZ(hatch));
       }
     }
+    infrastructureInspector.apply(infrastructureOptions);
     renderer.shadowMap.needsUpdate = true;
   }
 
@@ -838,7 +851,15 @@ export function createViewer(
     setView('detail');
   }
 
+  function setInfrastructure(options: InfrastructureOptions | null, select?: (id: string) => void) {
+    infrastructureInspector.restore();
+    infrastructureOptions = options;
+    onInfrastructureStation = select;
+    applyGuide();
+  }
+
   function setMaquette(enabled: boolean, select?: (kind: ComponentKind, id: string) => void) {
+    infrastructureInspector.restore();
     restoreGuideVisibility();
     isMaquette = enabled;
     if (!enabled) {
@@ -1012,7 +1033,13 @@ export function createViewer(
           return object.userData.materialKind;
         });
       const hit = hits.find(({ object }) => !(object instanceof T.Mesh) || object.material !== paperCutaway) ?? hits[0];
-      if (hit) onMaterial?.(hit.object.userData.materialKind, hit.object.userData.materialId);
+      if (infrastructureOptions) {
+        const station = hits.find(hit => {
+          const data = hit.object.userData;
+          return data.station || /^(PC-\d{2}|ADM-01)$/.test(data.materialId);
+        });
+        if (station) onInfrastructureStation?.(station.object.userData.station ?? station.object.userData.materialId);
+      } else if (hit) onMaterial?.(hit.object.userData.materialKind, hit.object.userData.materialId);
       return;
     }
 
@@ -1071,7 +1098,7 @@ export function createViewer(
     renderer.render(scene, activeCamera);
   });
   return {
-    showZones, showNetwork, setView, setMaquette, setConstructionPhase, showFloor, focusMaquette, focusClimate, center: () => setView(view),
+    showZones, showNetwork, setView, setMaquette, setConstructionPhase, showFloor, setInfrastructure, focusMaquette, focusClimate, center: () => setView(view),
     zoom(factor: number) { camera.zoom = T.MathUtils.clamp(camera.zoom * factor, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); },
     layers(dimensions: boolean, circulation: boolean) {
       userDimensions = dimensions;
